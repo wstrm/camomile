@@ -1,15 +1,14 @@
-version: 2
+version: 2.1
 
 aliases:
   restore_gomod: &restore_gomod
     restore_cache:
-      keys:
-        - go-mod-v4-{{ checksum "go.sum" }}
-    store_gomod: &store_gomod
-      save_cache:
-        key: go-mod-v4-{{ checksum "go.sum" }}
-        paths:
-          - "/go/pkg/mod"
+      key: go-mod-v4-{{ checksum "go.sum" }}
+  store_gomod: &store_gomod
+    save_cache:
+      key: go-mod-v4-{{ checksum "go.sum" }}
+      paths:
+        - "/go/pkg/mod"
 
 executors:
   golang:
