@@ -1,63 +1,41 @@
-version: 2.1
+version: 2
 
-aliases:
-  restore_gomod: &restore_gomod
-    restore_cache:
-      key: go-mod-v4-{{ checksum "go.sum" }}
-  store_gomod: &store_gomod
-    save_cache:
-      key: go-mod-v4-{{ checksum "go.sum" }}
-      paths:
-        - "/go/pkg/mod"
-
-executors:
-  golang:
+jobs:
+  build:
     docker:
       - image: circleci/golang:1.12
 
-jobs:
-  deps:
-    executor: golang
     steps:
       - checkout
-      - *restore_gomod
-      - run: go mod verify
-      - *store_gomod
-  build:
-    executor: golang
-    steps:
-      - checkout
-      - *restore_gomod
-      - run: go build ./cmd/...
-      - *store_gomod
-  lint:
-    executor: golang
-    steps:
-      - checkout
-      - *restore_gomod
-      - run: curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1
-      - run: golangci-lint run
-      - *store_gomod
-  vet:
-    executor: golang
-    steps:
-      - checkout
-      - *restore_gomod
-      - run: go vet ./...
-      - *store_gomod
-  test:
-    executor: golang
-    steps:
-      - checkout
-      - *restore_gomod
-      - run: go test -v -cover -race ./...
-      - *store_gomod
+      - restore_cache:
+        keys:
+          - go-mod-v4-{{ checksum "go.sum" }}
+
+      - run:
+          name: "Verify"
+          command: go mod verify
+      - run:
+          name: "Build"
+          command: go build ./cmd/...
+      - run:
+          name: "Lint"
+          command: |
+            curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.17.1
+            ./bin/golangci-lint run
+      - run:
+          name: "Vet"
+          command: go vet ./...
+      - run:
+          name: "Test"
+          command: go test -v -cover -race ./...
+
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
 
 workflows:
   version: 2
   build-workflow:
     jobs:
       - build
-      - lint
-      - vet
-      - test
