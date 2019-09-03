@@ -60,5 +60,5 @@ workflows:
     jobs:
       - build
       - lint
-			- vet
+      - vet
       - test
