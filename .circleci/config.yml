@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.12
 
     steps:
       - checkout
@@ -17,7 +17,7 @@ jobs:
       - run:
           name: "Build"
           command: |
-            curl -sfL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && sudo unzip /tmp/protoc.zip -d /usr/local
+            curl -sfL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && sudo unzip /tmp/protoc.zip -d /usr/local/
             go get -u github.com/golang/protobuf/protoc-gen-go
             go generate ./...
             go build ./cmd/...
