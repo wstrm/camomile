@@ -9,7 +9,8 @@ message Packet {
     Store store = 4;
     Value value = 5;
     FindNode find_node = 6;
-    NodeList node_list = 7;
+    FindValue find_value = 7;
+    NodeList node_list = 8;
   }
 }
 
