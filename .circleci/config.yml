@@ -1,0 +1,41 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.12
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+
+      - run:
+          name: "Verify"
+          command: go mod verify
+      - run:
+          name: "Build"
+          command: go build ./cmd/...
+      - run:
+          name: "Lint"
+          command: |
+            curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.17.1
+            ./bin/golangci-lint run
+      - run:
+          name: "Vet"
+          command: go vet ./...
+      - run:
+          name: "Test"
+          command: go test -v -cover -race ./...
+
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+
+workflows:
+  version: 2
+  build-workflow:
+    jobs:
+      - build
