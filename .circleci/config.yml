@@ -16,7 +16,9 @@ jobs:
           command: go mod verify
       - run:
           name: "Build"
-          command: go build ./cmd/...
+          command: |
+            go generate ./...
+            go build ./cmd/...
       - run:
           name: "Lint"
           command: |
