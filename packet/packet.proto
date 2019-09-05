@@ -3,14 +3,15 @@ package packet;
 
 message Packet {
   bytes packet_id = 1;
+  bytes sender_id = 2;
   oneof payload {
-    Ping ping = 2;
-    Pong pong = 3;
-    Store store = 4;
-    Value value = 5;
-    FindNode find_node = 6;
-    FindValue find_value = 7;
-    NodeList node_list = 8;
+    Ping ping = 3;
+    Pong pong = 4;
+    Store store = 5;
+    Value value = 6;
+    FindNode find_node = 7;
+    FindValue find_value = 8;
+    NodeList node_list = 9;
   }
 }
 
