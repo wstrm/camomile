@@ -14,7 +14,10 @@ func handlePacket(conn *net.UDPConn) {
 func sendPacket(packet []byte, address *net.UDPAddr) {
 	conn, _ := net.DialUDP("udp", nil, address)
 	defer conn.Close()
-	conn.Write(packet)
+	err := conn.Write(packet)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func main() {
@@ -22,9 +25,12 @@ func main() {
 
 	// Listen to all addresses on port 8118.
 	udpAddress, err := net.ResolveUDPAddr("udp", ":8118")
+	if err != nil {
+		log.Fatalln("Unable to resolve IP and Port, %v", err)
+	}
 	conn, err := net.ListenUDP("udp", udpAddress)
 	if err != nil {
-		log.Fatalln("Unable to listen at %s, %v", udpAddress.String(), err)
+		log.Fatalln("Unable to listen at %v, %v", udpAddress.String(), err)
 		return
 	}
 
