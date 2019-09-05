@@ -14,7 +14,7 @@ func handlePacket(conn *net.UDPConn) {
 func sendPacket(packet []byte, address *net.UDPAddr) {
 	conn, _ := net.DialUDP("udp", nil, address)
 	defer conn.Close()
-	err := conn.Write(packet)
+	_, err := conn.Write(packet)
 	if err != nil {
 		log.Println(err)
 	}
