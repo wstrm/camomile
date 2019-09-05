@@ -31,7 +31,7 @@ func main() {
 	defer conn.Close()
 
 	// Say hello to yourself, this should probably be changed to a node in the network.
-	sendPacket("Hello, I'm a node", &net.UDPAddr{IP: []byte{127, 0, 0, 1}, Port: 8118, Zone: ""})
+	sendPacket([]byte("Hello, I'm a node"), &net.UDPAddr{IP: []byte{127, 0, 0, 1}, Port: 8118, Zone: ""})
 
 	for {
 		fmt.Println("Listening for UDP packets on port 8118")
