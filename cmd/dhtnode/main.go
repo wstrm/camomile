@@ -26,11 +26,11 @@ func main() {
 	// Listen to all addresses on port 8118.
 	udpAddress, err := net.ResolveUDPAddr("udp", ":8118")
 	if err != nil {
-		log.Fatalln("Unable to resolve IP and Port, %v", err)
+		log.Fatalf("Unable to resolve IP and Port, %v", err)
 	}
 	conn, err := net.ListenUDP("udp", udpAddress)
 	if err != nil {
-		log.Fatalln("Unable to listen at %v, %v", udpAddress.String(), err)
+		log.Fatalf("Unable to listen at %v, %v", udpAddress.String(), err)
 		return
 	}
 

@@ -9,6 +9,6 @@ func main() {
 	defer conn.Close()
 	_, err := conn.Write([]byte("hello"))
 	if err != nil {
-		fmt.Println("Could not send message %v", err)
+		fmt.Println("Could not send message", err)
 	}
 }
