@@ -6,24 +6,20 @@ import (
 	"net"
 )
 
-func strToIP(str string) net.IP {
-	return net.ParseIP(str)
-}
-
 func executePut() {
-
+	//TODO
 }
 
 func executeGet() {
-
+	//TODO
 }
 
 func executePing() {
-
+	//TODO
 }
 
 func executeExit() {
-
+	//TODO
 }
 
 func main() {
@@ -36,7 +32,7 @@ func main() {
 
 	// Parse input and validate ip-address from CLI
 	flag.Parse()
-	// TODO: netIP, err := strToIP(ip)
+	udpAddr := net.UDPAddr{net.ParseIP(*ip), 0, ""}
 
 	// Execute tasks given via CLI
 	if "" != *put {
