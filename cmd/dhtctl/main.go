@@ -33,7 +33,7 @@ func main() {
 
 	// Parse input and validate ip-address from CLI
 	flag.Parse()
-	udpAddr := net.UDPAddr{net.ParseIP(*address), 8118, ""}
+	udpAddr := net.UDPAddr{IP: net.ParseIP(*address), Port: 8118}
 	if udpAddr.IP == nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", "Unable to parse IP address.")
 		os.Exit(1)
