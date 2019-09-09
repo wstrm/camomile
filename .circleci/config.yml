@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.13
 
     steps:
       - checkout
@@ -24,8 +24,8 @@ jobs:
       - run:
           name: "Lint"
           command: |
-            curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.17.1
-            ./bin/golangci-lint run
+            GO111MODULE=off go get gopkg.in/golangci/golangci-lint.v1/cmd/golangci-lint
+            golangci-lint run
       - run:
           name: "Vet"
           command: go vet ./...
