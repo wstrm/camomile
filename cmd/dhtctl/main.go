@@ -52,7 +52,7 @@ func main() {
 		executeExit()
 	}
 
-	// Debug output
+	// Debug
 	fmt.Println("IP: ", udpAddr)
 	fmt.Println("Put: ", *put)
 	fmt.Println("Get: ", *get)
