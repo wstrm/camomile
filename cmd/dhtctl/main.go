@@ -31,7 +31,7 @@ func main() {
 	var ping = flag.Bool("ping", false, "ping the node at address")
 	var exit = flag.Bool("exit", false, "terminate the node")
 
-	// Parse input and validate address from CLI
+	// Parse input and validate address
 	flag.Parse()
 	udpAddr, err := net.ResolveUDPAddr("udp", *address)
 	if err != nil {
