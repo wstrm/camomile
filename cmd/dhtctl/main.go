@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
-	"os"
 )
 
 func executePut() {
@@ -25,7 +25,7 @@ func executeExit() {
 
 func main() {
 	// Flags
-	var address = flag.String("address", "localhost", "the ip-address of the node")
+	var address = flag.String("address", "localhost", "the address of the node")
 	var put = flag.String("put", "", "put value to store")
 	var get = flag.String("get", "", "key of the value to get")
 	var ping = flag.Bool("ping", false, "ping the node at address")
@@ -33,10 +33,9 @@ func main() {
 
 	// Parse input and validate ip-address from CLI
 	flag.Parse()
-	udpAddr := net.UDPAddr{IP: net.ParseIP(*address), Port: 8118}
-	if udpAddr.IP == nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", "Unable to parse IP address.")
-		os.Exit(1)
+	udpAddr, err := net.ResolveUDPAddr("udp", *address)
+	if err != nil {
+		log.Fatalln("Unable to parse address.")
 	}
 
 	// Execute tasks given via CLI
