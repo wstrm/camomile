@@ -38,7 +38,7 @@ func main() {
 		log.Fatalln("Unable to parse address.")
 	}
 
-	// Execute tasks given via CLI
+	// Execute tasks
 	if "" != *put {
 		executePut()
 	}
