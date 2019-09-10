@@ -1,4 +1,4 @@
 version: '3'
 services:
     dhtnode:
-        image: golang:1.13-alpine
+        image: dhtnode:latest
