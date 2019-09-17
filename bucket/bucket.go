@@ -2,7 +2,6 @@ package bucket
 
 import (
 	"encoding/binary"
-	"fmt"
 	"net"
 )
 
@@ -22,14 +21,7 @@ type Contact struct {
 }
 
 func distance(a, b NodeID) (uint64, error) {
-	x := len(a)
-	y := len(b)
-
-	if x != y {
-		return 0, fmt.Errorf("inequal byte slice lengths: %d != %d", x, y)
-	}
-
-	d := make([]byte, bytesLength)
+	d := make([]byte, cap(a))
 
 	for i := range a {
 		d[i] = a[i] ^ b[i]
