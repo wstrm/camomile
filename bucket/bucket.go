@@ -31,7 +31,7 @@ func distance(a, b NodeID) (uint64, error) {
 
 	d := make([]byte, bytesLength)
 
-	for i, _ := range a {
+	for i := range a {
 		d[i] = a[i] ^ b[i]
 	}
 
