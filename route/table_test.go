@@ -13,10 +13,22 @@ func init() {
 func randomID() (id NodeID) {
 	buf := make([]byte, bytesLength)
 
-	// Not cryptographically secure, so that the same ID's are generated on every run.
 	rand.Read(buf)
 	copy(id[:], buf[:bytesLength])
 
+	return
+}
+
+func zeroID() (id NodeID) {
+	copy(id[:], make([]byte, bytesLength, bytesLength))
+	return
+}
+
+func makeID(prefix []byte) (id NodeID) {
+	l := len(prefix)
+	b := bytesLength - l
+	copy(id[:l], prefix)
+	copy(id[l:], make([]byte, b, b))
 	return
 }
 
@@ -76,11 +88,69 @@ func TestMe(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	c := Contact{NodeID: randomID()}
+	me := Contact{NodeID: zeroID()}
+
+	// Will create the IDs:
+	// [ 00000001 000000... ]
+	// [ 00000010 000000... ]
+	// [ 00000100 000000... ]
+	// ...
+	// And check that the prefix lengths equal:
+	// 7, 6, 5...
+	i := uint(0)
+	j := 7
+	for i < 7 {
+		c1 := Contact{NodeID: makeID([]byte{1 << i})}
+
+		rt := New(me)
+
+		err := rt.Add(c1)
+		if err != nil {
+			t.Error(err)
+		}
+
+		c2 := rt[j].Front().Value.(Contact)
+
+		if !c1.NodeID.equal(c2.NodeID) {
+			t.Errorf("inequal node ID, %v != %v", c1.NodeID, c2.NodeID)
+		}
+
+		i++
+		j--
+	}
+}
+
+func TestDuplicateContact(t *testing.T) {
 	me := Contact{NodeID: randomID()}
-	//d, _ := distance(me.NodeID, c.NodeID)
+	c1 := Contact{NodeID: randomID()}
+	d, _ := distance(me.NodeID, c1.NodeID)
 
 	rt := New(me)
 
-	rt.Add(c)
+	err := rt.Add(c1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = rt.Add(c1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bucketLen := rt[d.index()].Len()
+	expLen := 1
+	if bucketLen != expLen {
+		t.Errorf("unexpected bucket length, %d != %d", bucketLen, expLen)
+	}
+}
+
+func BenchmarkAdd(b *testing.B) {
+	rt := New(Contact{NodeID: randomID()})
+
+	for n := 0; n < b.N; n++ {
+		err := rt.Add(Contact{NodeID: randomID()})
+		if err != nil {
+			b.Error(err)
+		}
+	}
 }
