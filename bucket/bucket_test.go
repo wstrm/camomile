@@ -22,14 +22,28 @@ func randomID() (id NodeID) {
 
 func TestDistance(t *testing.T) {
 	testTable := []struct {
-		a   NodeID
-		b   NodeID
-		exp uint64
+		a     NodeID
+		b     NodeID
+		dist  Distance
+		index int
 	}{
 		{
-			a:   randomID(),
-			b:   randomID(),
-			exp: 1025590944692582766,
+			a:     randomID(),
+			b:     randomID(),
+			dist:  1025590944692582766,
+			index: 4,
+		},
+		{
+			a:     randomID(),
+			b:     randomID(),
+			dist:  528613502286187044,
+			index: 5,
+		},
+		{
+			a:     randomID(),
+			b:     randomID(),
+			dist:  15488385851010800719,
+			index: 0,
 		},
 	}
 
@@ -39,8 +53,34 @@ func TestDistance(t *testing.T) {
 			t.Error(err)
 		}
 
-		if d != test.exp {
-			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d\n", test.a, test.b, d, test.exp)
+		if d != test.dist {
+			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, d, test.dist)
+		}
+
+		i := d.index()
+		if i != test.index {
+			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, i, test.index)
 		}
 	}
+}
+
+func TestMe(t *testing.T) {
+	me := Contact{NodeID: randomID()}
+
+	rt := New(me)
+	rtMe := rt.me()
+
+	if !me.NodeID.equal(rtMe.NodeID) {
+		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
+	}
+}
+
+func TestAdd(t *testing.T) {
+	c := Contact{NodeID: randomID()}
+	me := Contact{NodeID: randomID()}
+	//d, _ := distance(me.NodeID, c.NodeID)
+
+	rt := New(me)
+
+	rt.Add(c)
 }
