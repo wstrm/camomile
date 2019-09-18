@@ -15,15 +15,10 @@ type item struct {
 	origPub		NodeID
 }
 
-type storedKey struct {
-	key		Key
-	republish	time.Time
-}
-
 type items map[Key]item
-type storedKeys map[Key]storedKey
+type storedKeys map[Key]time.Time
 
-func addItem(value [255]byte, origPub NodeID) (error) {
+func (i *items) add(value [255]byte, origPub NodeID) (error) {
 	t := time.Now()
 	expire := t.Add(time.Second * 86400)
 	republish := expire
@@ -41,10 +36,10 @@ func addItem(value [255]byte, origPub NodeID) (error) {
 	newItem.republish = republish
 	newItem.origPub = origPub
 
-	items[key] = newItem
+	i[key] = newItem
 }
 
-func addStoredKey(key Key) {
+func (k *storedKeys) add(key Key) {
 	t := time.Now()
 	republish := t.Add(time.Second * 86400)
 
@@ -53,15 +48,34 @@ func addStoredKey(key Key) {
 	newStoredKey.key = key
 	newStoredKey.republish = republish
 
-	storedKeys[key] = newStoredKey
+	k[key] = newStoredKey
+}
+/*
+func (i *items) evict(key Key) {
+	delete(*items, key)
 }
 
-func evictItem(key Key) {
-	delete(items, key)
+func (k *storedKeys) evict(key Key) {
+	delete (*storedKeys, key)
 }
 
 // Start this as a Goroutine at node start.
-func itemHandler() {
-	timer := time.NewTimer(time.Second * )
-
+func (i *items) itemHandler() {
+	timer := time.NewTimer(time.Second * 1)
+	for key, item := range items {
+		if item.expire.After(time.Now()) || item.republish.After(time.Now())
+			items.evict(key)
+	}
 }
+
+// Start as Goroutine. 
+// Function is responsible for republishing data that should persist on storage network.
+func (k *storedKeys) republisher(repub chan storedKey) {
+	timer := time.NewTimer(time.Second * 1)
+	for key :=range storedKeys {
+		if key.republish.After(time.Now())
+			//TODO: chan to communicate with RPC to send store command.
+			repub <- storedKey
+	}
+}
+*/
