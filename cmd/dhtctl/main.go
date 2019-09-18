@@ -9,10 +9,6 @@ import (
 	"net/rpc"
 )
 
-//func getID() []byte {
-//
-//}
-
 func put(c *rpc.Client, val *string) {
 	put := cmd.Put{
 		Id:  nil,
