@@ -54,12 +54,23 @@ func TestDistance(t *testing.T) {
 		}
 
 		if d != test.dist {
-			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d\n", test.a, test.b, d, test.dist)
+			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, d, test.dist)
 		}
 
 		i := d.index()
 		if i != test.index {
-			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d\n", test.a, test.b, i, test.index)
+			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, i, test.index)
 		}
+	}
+}
+
+func TestMe(t *testing.T) {
+	me := Contact{NodeID: randomID()}
+
+	rt := New(me)
+	rtMe := rt.me()
+
+	if !me.NodeID.equal(rtMe.NodeID) {
+		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
 	}
 }

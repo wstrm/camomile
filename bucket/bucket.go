@@ -12,15 +12,14 @@ const idLength = 160
 const bytesLength = idLength / 8
 const bucketSize = 20
 
-type Buckets [idLength]*Bucket
-type Bucket struct{ list.List }
+type RoutingTable [idLength]*Bucket
+type Bucket struct{ *list.List }
 
 type NodeID [bytesLength]byte
 
 type Contact struct {
 	NodeID  NodeID
 	Address net.UDPAddr
-	Port    uint32
 }
 
 type Distance uint64
@@ -41,8 +40,8 @@ func (a NodeID) equal(b NodeID) bool {
 }
 
 // me returns the contact in the last bucket (the local node).
-func (buckets *Buckets) me() Contact {
-	lastBucket := buckets[bucketSize-1]
+func (rt *RoutingTable) me() Contact {
+	lastBucket := rt[bucketSize-1]
 	return lastBucket.Front().Value.(Contact)
 }
 
@@ -75,17 +74,30 @@ func (bucket *Bucket) add(c Contact) {
 }
 
 // Add finds the correct bucket to add the contact to and inserts the contact.
-func (buckets *Buckets) Add(c Contact) (err error) {
-	me := buckets.me()
+func (rt *RoutingTable) Add(c Contact) (err error) {
+	me := rt.me()
 
 	d, err := distance(me.NodeID, c.NodeID)
-	b := buckets[d.index()]
+	b := rt[d.index()]
 	b.add(c)
 
 	return
 }
 
+func New(me Contact) (rt *RoutingTable) {
+	rt = new(RoutingTable)
+
+	for i := range rt {
+		rt[i] = &Bucket{list.New()}
+	}
+
+	// Add local node to last bucket.
+	rt[bucketSize-1].PushFront(me)
+
+	return rt
+}
+
 /* TODO(opmtzr)
-func (b *Buckets) Closest(id []byte) (contact Contact, err error) {}
-func (b *Buckets) remove(id []byte)                               {}
+func (b *RoutingTable) Closest(id []byte) (contact Contact, err error) {}
+func (b *RoutingTable) remove(id []byte)                               {}
 */
