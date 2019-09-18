@@ -9,11 +9,11 @@ import (
 	"net/rpc"
 )
 
-func put() {
+func put(c *rpc.Client) {
 	//TODO
 }
 
-func get() {
+func get(c *rpc.Client) {
 	//TODO
 }
 
@@ -31,7 +31,16 @@ func ping(c *rpc.Client, id []byte) {
 }
 
 func exit(c *rpc.Client, id []byte) {
-	//TODO
+	exit := cmd.Exit{Id: id}
+	var reply bool
+	err := c.Call("API.Exit", exit, &reply)
+	if err != nil {
+		log.Fatal("Ping error:", err)
+	}
+	// Debug
+	if reply {
+		fmt.Println("RPC successful")
+	}
 }
 
 func main() {
@@ -40,7 +49,7 @@ func main() {
 	var putFlag = flag.String("put", "", "put value to store")
 	var getFlag = flag.String("get", "", "key of the value to get")
 	var pingFlag = flag.String("ping", "", "ID of the node to ping")
-	var exitFlag = flag.String("exit", "", "terminate the node")
+	var exitFlag = flag.String("exit", "", "ID of the node to terminate")
 
 	// Parse input
 	flag.Parse()
@@ -53,10 +62,10 @@ func main() {
 
 	// Execute tasks
 	if "" != *putFlag {
-		put()
+		put(client)
 	}
 	if "" != *getFlag {
-		get()
+		get(client)
 	}
 	if *pingFlag != "" {
 		id, err := hex.DecodeString(*pingFlag)

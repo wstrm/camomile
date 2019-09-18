@@ -6,6 +6,14 @@ type Ping struct {
 	Id []byte
 }
 
+type Put struct {
+	Id []byte
+}
+
+type Get struct {
+	Id []byte
+}
+
 type Exit struct {
 	Id []byte
 }
