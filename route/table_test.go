@@ -20,7 +20,7 @@ func randomID() (id NodeID) {
 }
 
 func zeroID() (id NodeID) {
-	copy(id[:], make([]byte, bytesLength, bytesLength))
+	copy(id[:], make([]byte, bytesLength))
 	return
 }
 
@@ -28,7 +28,7 @@ func makeID(prefix []byte) (id NodeID) {
 	l := len(prefix)
 	b := bytesLength - l
 	copy(id[:l], prefix)
-	copy(id[l:], make([]byte, b, b))
+	copy(id[l:], make([]byte, b))
 	return
 }
 
