@@ -1,9 +1,12 @@
-version: 2
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@1.0.2
 
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.13
 
     steps:
       - checkout
@@ -16,18 +19,25 @@ jobs:
           command: go mod verify
       - run:
           name: "Build"
-          command: go build ./cmd/...
+          command: |
+            curl -sfL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && sudo unzip /tmp/protoc.zip -d /usr/local/
+            go get -u github.com/golang/protobuf/protoc-gen-go
+            go generate ./...
+            go build ./cmd/...
       - run:
           name: "Lint"
           command: |
-            curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.17.1
-            ./bin/golangci-lint run
+            GO111MODULE=off go get gopkg.in/golangci/golangci-lint.v1/cmd/golangci-lint
+            golangci-lint run
       - run:
           name: "Vet"
           command: go vet ./...
       - run:
           name: "Test"
-          command: go test -v -cover -race ./...
+          command: go test -v -coverprofile=c.out -race ./...
+
+      - codecov/upload:
+          file: "./c.out"
 
       - save_cache:
           key: go-mod-v4-{{ checksum "go.sum" }}
