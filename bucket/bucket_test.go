@@ -74,3 +74,13 @@ func TestMe(t *testing.T) {
 		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
 	}
 }
+
+func TestAdd(t *testing.T) {
+	c := Contact{NodeID: randomID()}
+	me := Contact{NodeID: randomID()}
+	//d, _ := distance(me.NodeID, c.NodeID)
+
+	rt := New(me)
+
+	rt.Add(c)
+}
