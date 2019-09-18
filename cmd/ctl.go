@@ -7,11 +7,13 @@ type Ping struct {
 }
 
 type Put struct {
-	Id []byte
+	Id  []byte
+	Val string
 }
 
 type Get struct {
-	Id []byte
+	Id  []byte
+	Key []byte
 }
 
 type Exit struct {
@@ -19,6 +21,18 @@ type Exit struct {
 }
 
 func (a *API) Ping(ping Ping, reply *bool) error {
+	*reply = true
+	return nil
+	//TODO
+}
+
+func (a *API) Put(put Put, reply *bool) error {
+	*reply = true
+	return nil
+	//TODO
+}
+
+func (a *API) Get(get Get, reply *bool) error {
 	*reply = true
 	return nil
 	//TODO

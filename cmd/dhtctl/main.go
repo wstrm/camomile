@@ -9,22 +9,59 @@ import (
 	"net/rpc"
 )
 
-func put(c *rpc.Client) {
-	//TODO
+//func getID() []byte {
+//
+//}
+
+func put(c *rpc.Client, val *string) {
+	put := cmd.Put{
+		Id:  nil,
+		Val: *val,
+	}
+	var reply bool
+
+	// The RPC call
+	err := c.Call("API.Put", put, &reply)
+	if err != nil {
+		log.Fatal("Put error:", err)
+	}
+
+	// Debug (reply)
+	if reply {
+		fmt.Println("RPC successful")
+	}
 }
 
-func get(c *rpc.Client) {
-	//TODO
+func get(c *rpc.Client, key []byte) {
+	get := cmd.Get{
+		Id:  nil,
+		Key: key,
+	}
+	var reply bool
+
+	// The RPC call
+	err := c.Call("API.Get", get, &reply)
+	if err != nil {
+		log.Fatal("Get error:", err)
+	}
+
+	// Debug (reply)
+	if reply {
+		fmt.Println("RPC successful")
+	}
 }
 
 func ping(c *rpc.Client, id []byte) {
 	ping := cmd.Ping{Id: id}
 	var reply bool
+
+	// The RPC call
 	err := c.Call("API.Ping", ping, &reply)
 	if err != nil {
 		log.Fatal("Ping error:", err)
 	}
-	// Debug
+
+	// Debug (reply)
 	if reply {
 		fmt.Println("RPC successful")
 	}
@@ -33,11 +70,14 @@ func ping(c *rpc.Client, id []byte) {
 func exit(c *rpc.Client, id []byte) {
 	exit := cmd.Exit{Id: id}
 	var reply bool
+
+	// The RPC call
 	err := c.Call("API.Exit", exit, &reply)
 	if err != nil {
 		log.Fatal("Ping error:", err)
 	}
-	// Debug
+
+	// Debug (reply)
 	if reply {
 		fmt.Println("RPC successful")
 	}
@@ -62,10 +102,14 @@ func main() {
 
 	// Execute tasks
 	if "" != *putFlag {
-		put(client)
+		put(client, putFlag)
 	}
 	if "" != *getFlag {
-		get(client)
+		key, err := hex.DecodeString(*getFlag)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		get(client, key)
 	}
 	if *pingFlag != "" {
 		id, err := hex.DecodeString(*pingFlag)
@@ -86,6 +130,6 @@ func main() {
 	fmt.Println("Address: ", *addressFlag)
 	fmt.Println("Put: ", *putFlag)
 	fmt.Println("Get: ", *getFlag)
-	fmt.Println("Ping :", *pingFlag)
+	fmt.Println("Ping:", *pingFlag)
 	fmt.Println("Exit: ", *exitFlag)
 }
