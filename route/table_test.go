@@ -1,4 +1,4 @@
-package bucket
+package route
 
 import (
 	"math/rand" // Not cryptographically secure on purpose.

@@ -1,4 +1,4 @@
-package bucket
+package route
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ const idLength = 160
 const bytesLength = idLength / 8
 const bucketSize = 20
 
-type RoutingTable [idLength]*Bucket
+type Table [idLength]*Bucket
 type Bucket struct{ *list.List }
 
 type NodeID [bytesLength]byte
@@ -40,7 +40,7 @@ func (a NodeID) equal(b NodeID) bool {
 }
 
 // me returns the contact in the last bucket (the local node).
-func (rt *RoutingTable) me() Contact {
+func (rt *Table) me() Contact {
 	lastBucket := rt[bucketSize-1]
 	return lastBucket.Front().Value.(Contact)
 }
@@ -74,7 +74,7 @@ func (bucket *Bucket) add(c Contact) {
 }
 
 // Add finds the correct bucket to add the contact to and inserts the contact.
-func (rt *RoutingTable) Add(c Contact) (err error) {
+func (rt *Table) Add(c Contact) (err error) {
 	me := rt.me()
 
 	d, err := distance(me.NodeID, c.NodeID)
@@ -84,8 +84,8 @@ func (rt *RoutingTable) Add(c Contact) (err error) {
 	return
 }
 
-func New(me Contact) (rt *RoutingTable) {
-	rt = new(RoutingTable)
+func New(me Contact) (rt *Table) {
+	rt = new(Table)
 
 	for i := range rt {
 		rt[i] = &Bucket{list.New()}
@@ -98,6 +98,6 @@ func New(me Contact) (rt *RoutingTable) {
 }
 
 /* TODO(opmtzr)
-func (b *RoutingTable) Closest(id []byte) (contact Contact, err error) {}
-func (b *RoutingTable) remove(id []byte)                               {}
+func (b *Table) Closest(id []byte) (contact Contact, err error) {}
+func (b *Table) remove(id []byte)                               {}
 */
