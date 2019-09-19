@@ -60,10 +60,7 @@ func TestDistance(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		d, err := distance(test.a, test.b)
-		if err != nil {
-			t.Error(err)
-		}
+		d := distance(test.a, test.b)
 
 		if d != test.dist {
 			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, d, test.dist)
@@ -78,8 +75,9 @@ func TestDistance(t *testing.T) {
 
 func TestMe(t *testing.T) {
 	me := Contact{NodeID: randomID()}
+	boot := Contact{NodeID: randomID()}
 
-	rt := New(me)
+	rt := New(me, boot)
 	rtMe := rt.me()
 
 	if !me.NodeID.equal(rtMe.NodeID) {
@@ -89,6 +87,7 @@ func TestMe(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	me := Contact{NodeID: zeroID()}
+	boot := Contact{NodeID: randomID()}
 
 	// Will create the IDs:
 	// [ 00000001 000000... ]
@@ -102,12 +101,9 @@ func TestAdd(t *testing.T) {
 	for i < 7 {
 		c1 := Contact{NodeID: makeID([]byte{1 << i})}
 
-		rt := New(me)
+		rt := New(me, boot)
 
-		err := rt.Add(c1)
-		if err != nil {
-			t.Error(err)
-		}
+		rt.Add(c1)
 
 		c2 := rt[j].Front().Value.(Contact)
 
@@ -122,20 +118,14 @@ func TestAdd(t *testing.T) {
 
 func TestDuplicateContact(t *testing.T) {
 	me := Contact{NodeID: randomID()}
+	boot := Contact{NodeID: randomID()}
 	c1 := Contact{NodeID: randomID()}
-	d, _ := distance(me.NodeID, c1.NodeID)
+	d := distance(me.NodeID, c1.NodeID)
 
-	rt := New(me)
+	rt := New(me, boot)
 
-	err := rt.Add(c1)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = rt.Add(c1)
-	if err != nil {
-		t.Error(err)
-	}
+	rt.Add(c1)
+	rt.Add(c1)
 
 	bucketLen := rt[d.index()].Len()
 	expLen := 1
@@ -144,16 +134,30 @@ func TestDuplicateContact(t *testing.T) {
 	}
 }
 
+func TestNClosest(t *testing.T) {
+	me := Contact{NodeID: randomID()}
+	boot := Contact{NodeID: randomID()}
+
+	rt := New(me, boot)
+
+	var contacts []Contact
+	var contact Contact
+	for i := 0; i < 5000; i++ {
+		contact = Contact{NodeID: randomID()}
+		contacts = append(contacts, contact)
+		rt.Add(contact)
+	}
+
+	rt.NClosest(me.NodeID, 500)
+}
+
 func BenchmarkAdd(b *testing.B) {
 	b.StopTimer()
-	rt := New(Contact{NodeID: randomID()})
+	rt := New(Contact{NodeID: randomID()}, Contact{NodeID: randomID()})
 	b.StartTimer()
 
 	for n := 0; n < b.N; n++ {
-		err := rt.Add(Contact{NodeID: randomID()})
-		if err != nil {
-			b.Error(err)
-		}
+		rt.Add(Contact{NodeID: randomID()})
 	}
 }
 
@@ -164,9 +168,6 @@ func BenchmarkDistance(b *testing.B) {
 	b.StartTimer()
 
 	for n := 0; n < b.N; n++ {
-		_, err := distance(id1, id2)
-		if err != nil {
-			b.Error(err)
-		}
+		distance(id1, id2)
 	}
 }
