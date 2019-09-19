@@ -36,7 +36,7 @@ func TestDistance(t *testing.T) {
 	testTable := []struct {
 		a     NodeID
 		b     NodeID
-		dist  Distance
+		dist  uint64
 		index int
 	}{
 		{
@@ -66,7 +66,7 @@ func TestDistance(t *testing.T) {
 			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, d, test.dist)
 		}
 
-		i := d.index()
+		i := leadingZeros(d)
 		if i != test.index {
 			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, i, test.index)
 		}
@@ -127,7 +127,7 @@ func TestDuplicateContact(t *testing.T) {
 	rt.Add(c1)
 	rt.Add(c1)
 
-	bucketLen := rt[d.index()].Len()
+	bucketLen := rt[leadingZeros(d)].Len()
 	expLen := 1
 	if bucketLen != expLen {
 		t.Errorf("unexpected bucket length, %d != %d", bucketLen, expLen)
@@ -140,15 +140,38 @@ func TestNClosest(t *testing.T) {
 
 	rt := New(me, boot)
 
-	// var contacts []Contact
+	var contacts []Contact
 	var contact Contact
-	for i := 0; i < 5000; i++ {
+	for i := 0; i < 30; i++ {
 		contact = Contact{NodeID: randomID()}
-		// contacts = append(contacts, contact)
+		contacts = append(contacts, contact)
 		rt.Add(contact)
 	}
 
-	rt.NClosest(me.NodeID, 500)
+	closest := rt.NClosest(me.NodeID, 500)
+	n := len(closest)
+	if n != 32 { // 1 bootstrap node and 1 local node.
+		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 32)
+	}
+
+	for _, contact := range contacts {
+		found := false
+		for _, c := range closest {
+			if contact.NodeID.equal(c.NodeID) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("contact with NodeID: %v doesn't exist", contact.NodeID)
+		}
+	}
+
+	closest = rt.NClosest(me.NodeID, 20)
+	n = len(closest)
+	if n != 20 {
+		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 20)
+	}
 }
 
 func BenchmarkAdd(b *testing.B) {

@@ -13,40 +13,54 @@ const idLength = 160
 const bytesLength = idLength / 8
 const bucketSize = 20
 
-type Table [idLength]*Bucket
-type Bucket struct{ *list.List }
+type Table [idLength]*bucket
+type bucket struct{ *list.List }
 
 type NodeID [bytesLength]byte
 
 type Contact struct {
 	NodeID   NodeID
 	Address  net.UDPAddr
-	distance Distance
+	distance uint64
 }
 
-type Candidates []Contact
+type candidates []Contact
 
-type Distance uint64
+// leadingZeros counts the number of leading bits that are zero in an uint64.
+func leadingZeros(distance uint64) int {
+	return bits.LeadingZeros64(uint64(distance))
+}
 
-func (cs Candidates) Len() int {
+// distance calculates the XOR metric for Kademlia.
+func distance(a, b NodeID) uint64 {
+	d := make([]byte, cap(a))
+
+	for i := range a {
+		d[i] = a[i] ^ b[i]
+	}
+
+	return binary.BigEndian.Uint64(d)
+}
+
+// Len returns the number of candidates.
+func (cs candidates) Len() int {
 	return len(cs)
 }
 
-func (cs Candidates) Swap(i, j int) {
+// Swap swaps the i'th and the j'th node.
+func (cs candidates) Swap(i, j int) {
 	cs[i], cs[j] = cs[j], cs[i]
 }
 
-func (cs Candidates) Less(i, j int) bool {
+// Less returns true if the distance of the i'th node is less than the j'th
+// node.
+func (cs candidates) Less(i, j int) bool {
 	return cs[i].distance < cs[j].distance
 }
 
-func (cs Candidates) sort() {
+// sort sorts the candidates by their distance to the local node.
+func (cs candidates) sort() {
 	sort.Sort(cs)
-}
-
-// index counts the number of leading bits that are zero in an uint64.
-func (d Distance) index() int {
-	return bits.LeadingZeros64(uint64(d))
 }
 
 // bytes returns the bytes slice without a fixed size for a NodeID.
@@ -65,42 +79,31 @@ func (rt *Table) me() Contact {
 	return lastBucket.Front().Value.(Contact)
 }
 
-// distance calculates the XOR metric for Kademlia.
-func distance(a, b NodeID) Distance {
-	d := make([]byte, cap(a))
-
-	for i := range a {
-		d[i] = a[i] ^ b[i]
-	}
-
-	return Distance(binary.BigEndian.Uint64(d))
-}
-
 // add adds the contact to the bucket.
-func (bucket *Bucket) add(c Contact) {
+func (b *bucket) add(c Contact) {
 	// Search for the element in case it already exists and move it to the
 	// front.
-	for e := bucket.Front(); e != nil; e = e.Next() {
+	for e := b.Front(); e != nil; e = e.Next() {
 		if c.NodeID.equal(e.Value.(Contact).NodeID) {
-			bucket.MoveToFront(e)
+			b.MoveToFront(e)
 			return
 		}
 	}
 
 	// Make sure the bucket is not larger than the maximum bucket size, k.
-	if bucket.Len() < bucketSize {
-		bucket.PushFront(c) // Add the contact in the front, last seen.
+	if b.Len() < bucketSize {
+		b.PushFront(c) // Add the contact in the front, last seen.
 	}
 }
 
 // candidates returns all the candidates in a bucket including the distance to a
 // provided NodeID.
-func (bucket *Bucket) candidates(id NodeID) (candidates Candidates) {
+func (b *bucket) candidates(id NodeID) (c candidates) {
 	var contact Contact
-	for e := bucket.Front(); e != nil; e = e.Next() {
+	for e := b.Front(); e != nil; e = e.Next() {
 		contact = e.Value.(Contact)
 		contact.distance = distance(id, contact.NodeID)
-		candidates = append(candidates, contact)
+		c = append(c, contact)
 	}
 	return
 }
@@ -110,38 +113,39 @@ func (rt *Table) Add(c Contact) {
 	me := rt.me()
 
 	d := distance(me.NodeID, c.NodeID)
-	b := rt[d.index()]
+	b := rt[leadingZeros(d)]
 	b.add(c)
 }
 
+// NClosest finds the N closest nodes for a provided NodeID.
 func (rt *Table) NClosest(id NodeID, n int) (contacts []Contact) {
 	me := rt.me()
 	d := distance(me.NodeID, id)
-	index := d.index()
+	index := leadingZeros(d)
 
-	var bucket *Bucket
-	var candidates Candidates
+	var b *bucket
+	var c candidates
 
-	bucket = rt[index]
-	candidates = append(candidates, bucket.candidates(me.NodeID)...)
+	b = rt[index]
+	c = append(c, b.candidates(me.NodeID)...)
 
-	for i := 1; len(candidates) < n && (index-i >= 0 || index+i < cap(rt)); i++ {
+	for i := 1; c.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {
 		if index-i >= 0 {
-			bucket = rt[index-i]
-			candidates = append(candidates, bucket.candidates(me.NodeID)...)
+			b = rt[index-i]
+			c = append(c, b.candidates(me.NodeID)...)
 		}
 		if index+i < cap(rt) {
-			bucket = rt[index+i]
-			candidates = append(candidates, bucket.candidates(me.NodeID)...)
+			b = rt[index+i]
+			c = append(c, b.candidates(me.NodeID)...)
 		}
 	}
 
-	candidates.sort()
+	c.sort()
 
-	if candidates.Len() < n {
-		return candidates
+	if c.Len() < n {
+		return c
 	} else {
-		return candidates[:n]
+		return c[:n]
 	}
 }
 
@@ -151,7 +155,7 @@ func New(me Contact, other Contact) (rt *Table) {
 	rt = new(Table)
 
 	for i := range rt {
-		rt[i] = &Bucket{list.New()}
+		rt[i] = &bucket{list.New()}
 	}
 
 	// Add local node to last bucket.
