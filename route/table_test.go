@@ -145,10 +145,26 @@ func TestDuplicateContact(t *testing.T) {
 }
 
 func BenchmarkAdd(b *testing.B) {
+	b.StopTimer()
 	rt := New(Contact{NodeID: randomID()})
+	b.StartTimer()
 
 	for n := 0; n < b.N; n++ {
 		err := rt.Add(Contact{NodeID: randomID()})
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func BenchmarkDistance(b *testing.B) {
+	b.StopTimer()
+	id1 := randomID()
+	id2 := randomID()
+	b.StartTimer()
+
+	for n := 0; n < b.N; n++ {
+		_, err := distance(id1, id2)
 		if err != nil {
 			b.Error(err)
 		}
