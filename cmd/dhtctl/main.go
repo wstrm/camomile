@@ -9,10 +9,10 @@ import (
 	"net/rpc"
 )
 
-func put(c *rpc.Client, val *string) {
+func put(c *rpc.Client, val string) {
 	put := cmd.Put{
 		Id:  nil,
-		Val: *val,
+		Val: val,
 	}
 	var reply bool
 
@@ -98,7 +98,7 @@ func main() {
 
 	// Execute tasks
 	if "" != *putFlag {
-		put(client, putFlag)
+		put(client, *putFlag)
 	}
 	if "" != *getFlag {
 		key, err := hex.DecodeString(*getFlag)
