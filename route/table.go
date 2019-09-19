@@ -13,18 +13,21 @@ const idLength = 160
 const bytesLength = idLength / 8
 const bucketSize = 20
 
-type Table [idLength]*bucket
 type bucket struct{ *list.List }
+type candidates []Contact
 
+// Table implements a routing table according to the Kademlia specification.
+type Table [idLength]*bucket
+
+// NodeID represents a node's ID.
 type NodeID [bytesLength]byte
 
+// Contact contains the NodeID and an UDP address.
 type Contact struct {
 	NodeID   NodeID
 	Address  net.UDPAddr
 	distance uint64
 }
-
-type candidates []Contact
 
 // leadingZeros counts the number of leading bits that are zero in an uint64.
 func leadingZeros(distance uint64) int {
@@ -166,7 +169,3 @@ func New(me Contact, other Contact) (rt *Table) {
 
 	return rt
 }
-
-/* TODO(opmtzr)
-func (b *Table) remove(id []byte)                               {}
-*/

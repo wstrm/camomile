@@ -194,3 +194,27 @@ func BenchmarkDistance(b *testing.B) {
 		distance(id1, id2)
 	}
 }
+
+func BenchmarkNClosest(b *testing.B) {
+	b.StopTimer()
+	me := Contact{NodeID: randomID()}
+	boot := Contact{NodeID: randomID()}
+
+	rt := New(me, boot)
+
+	var contacts []Contact
+	var contact Contact
+
+	contacts = append(contacts, me, boot)
+
+	for i := 0; i < 100; i++ {
+		contact = Contact{NodeID: randomID()}
+		contacts = append(contacts, contact)
+		rt.Add(contact)
+	}
+	b.StartTimer()
+
+	for n := 0; n < b.N; n++ {
+		rt.NClosest(contacts[n%len(contacts)].NodeID, 10)
+	}
+}
