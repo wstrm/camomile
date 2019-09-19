@@ -140,11 +140,11 @@ func TestNClosest(t *testing.T) {
 
 	rt := New(me, boot)
 
-	var contacts []Contact
+	// var contacts []Contact
 	var contact Contact
 	for i := 0; i < 5000; i++ {
 		contact = Contact{NodeID: randomID()}
-		contacts = append(contacts, contact)
+		// contacts = append(contacts, contact)
 		rt.Add(contact)
 	}
 

@@ -112,8 +112,6 @@ func (rt *Table) Add(c Contact) {
 	d := distance(me.NodeID, c.NodeID)
 	b := rt[d.index()]
 	b.add(c)
-
-	return
 }
 
 func (rt *Table) NClosest(id NodeID, n int) (contacts []Contact) {
