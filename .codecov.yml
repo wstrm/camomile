@@ -1,0 +1,7 @@
+coverage:
+  status:
+    project:
+      default:
+        threshold: null
+ignore:
+  - "example"
