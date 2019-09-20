@@ -44,20 +44,20 @@ func TestDistance(t *testing.T) {
 		{
 			a:     randomID(),
 			b:     randomID(),
-			dist:  1025590944692582766,
-			index: 4,
-		},
-		{
-			a:     randomID(),
-			b:     randomID(),
-			dist:  528613502286187044,
-			index: 5,
-		},
-		{
-			a:     randomID(),
-			b:     randomID(),
-			dist:  15488385851010800719,
+			dist:  9431948493169447405,
 			index: 0,
+		},
+		{
+			a:     randomID(),
+			b:     randomID(),
+			dist:  8624543047408693312,
+			index: 1,
+		},
+		{
+			a:     makeID([]byte{1}),
+			b:     makeID([]byte{5}),
+			dist:  288230376151711744,
+			index: 5,
 		},
 	}
 
