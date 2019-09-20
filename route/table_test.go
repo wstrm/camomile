@@ -3,6 +3,8 @@ package route
 import (
 	"math/rand" // Not cryptographically secure on purpose.
 	"testing"
+
+	"github.com/optmzr/d7024e-dht/node"
 )
 
 func init() {
@@ -10,23 +12,23 @@ func init() {
 	rand.Seed(123)
 }
 
-func randomID() (id NodeID) {
-	buf := make([]byte, bytesLength)
+func randomID() (id node.ID) {
+	buf := make([]byte, cap(id))
 
 	rand.Read(buf)
-	copy(id[:], buf[:bytesLength])
+	copy(id[:], buf[:cap(id)])
 
 	return
 }
 
-func zeroID() (id NodeID) {
-	copy(id[:], make([]byte, bytesLength))
+func zeroID() (id node.ID) {
+	copy(id[:], make([]byte, cap(id)))
 	return
 }
 
-func makeID(prefix []byte) (id NodeID) {
+func makeID(prefix []byte) (id node.ID) {
 	l := len(prefix)
-	b := bytesLength - l
+	b := cap(id) - l
 	copy(id[:l], prefix)
 	copy(id[l:], make([]byte, b))
 	return
@@ -34,8 +36,8 @@ func makeID(prefix []byte) (id NodeID) {
 
 func TestDistance(t *testing.T) {
 	testTable := []struct {
-		a     NodeID
-		b     NodeID
+		a     node.ID
+		b     node.ID
 		dist  uint64
 		index int
 	}{
@@ -80,7 +82,7 @@ func TestMe(t *testing.T) {
 	rt := New(me, boot)
 	rtMe := rt.me()
 
-	if !me.NodeID.equal(rtMe.NodeID) {
+	if !me.NodeID.Equal(rtMe.NodeID) {
 		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
 	}
 }
@@ -107,7 +109,7 @@ func TestAdd(t *testing.T) {
 
 		c2 := rt[j].Front().Value.(Contact)
 
-		if !c1.NodeID.equal(c2.NodeID) {
+		if !c1.NodeID.Equal(c2.NodeID) {
 			t.Errorf("inequal node ID, %v != %v", c1.NodeID, c2.NodeID)
 		}
 
@@ -157,13 +159,13 @@ func TestNClosest(t *testing.T) {
 	for _, contact := range contacts {
 		found := false
 		for _, c := range closest {
-			if contact.NodeID.equal(c.NodeID) {
+			if contact.NodeID.Equal(c.NodeID) {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("contact with NodeID: %v doesn't exist", contact.NodeID)
+			t.Errorf("contact with node ID: %v doesn't exist", contact.NodeID)
 		}
 	}
 

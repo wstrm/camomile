@@ -1,30 +1,26 @@
 package route
 
 import (
-	"bytes"
 	"container/list"
 	"encoding/binary"
 	"math/bits"
 	"net"
 	"sort"
+
+	"github.com/optmzr/d7024e-dht/node"
 )
 
-const idLength = 160
-const bytesLength = idLength / 8
 const bucketSize = 20
 
 type bucket struct{ *list.List }
 type candidates []Contact
 
 // Table implements a routing table according to the Kademlia specification.
-type Table [idLength]*bucket
+type Table [node.IDLength]*bucket
 
-// NodeID represents a node's ID.
-type NodeID [bytesLength]byte
-
-// Contact contains the NodeID and an UDP address.
+// Contact contains the node ID and an UDP address.
 type Contact struct {
-	NodeID   NodeID
+	NodeID   node.ID
 	Address  net.UDPAddr
 	distance uint64
 }
@@ -35,7 +31,7 @@ func leadingZeros(distance uint64) int {
 }
 
 // distance calculates the XOR metric for Kademlia.
-func distance(a, b NodeID) uint64 {
+func distance(a, b node.ID) uint64 {
 	d := make([]byte, cap(a))
 
 	for i := range a {
@@ -66,16 +62,6 @@ func (cs candidates) sort() {
 	sort.Sort(cs)
 }
 
-// bytes returns the bytes slice without a fixed size for a NodeID.
-func (n NodeID) bytes() []byte {
-	return n[:]
-}
-
-// equal compares the NodeID with another.
-func (a NodeID) equal(b NodeID) bool {
-	return bytes.Equal(a.bytes(), b.bytes())
-}
-
 // me returns the contact in the last bucket (the local node).
 func (rt *Table) me() Contact {
 	lastBucket := rt[bucketSize-1]
@@ -87,7 +73,7 @@ func (b *bucket) add(c Contact) {
 	// Search for the element in case it already exists and move it to the
 	// front.
 	for e := b.Front(); e != nil; e = e.Next() {
-		if c.NodeID.equal(e.Value.(Contact).NodeID) {
+		if c.NodeID.Equal(e.Value.(Contact).NodeID) {
 			b.MoveToFront(e)
 			return
 		}
@@ -100,8 +86,8 @@ func (b *bucket) add(c Contact) {
 }
 
 // candidates returns all the candidates in a bucket including the distance to a
-// provided NodeID.
-func (b *bucket) candidates(id NodeID) (c candidates) {
+// provided node ID.
+func (b *bucket) candidates(id node.ID) (c candidates) {
 	var contact Contact
 	for e := b.Front(); e != nil; e = e.Next() {
 		contact = e.Value.(Contact)
@@ -120,8 +106,8 @@ func (rt *Table) Add(c Contact) {
 	b.add(c)
 }
 
-// NClosest finds the N closest nodes for a provided NodeID.
-func (rt *Table) NClosest(id NodeID, n int) (contacts []Contact) {
+// NClosest finds the N closest nodes for a provided node ID.
+func (rt *Table) NClosest(id node.ID, n int) (contacts []Contact) {
 	me := rt.me()
 	d := distance(me.NodeID, id)
 	index := leadingZeros(d)
