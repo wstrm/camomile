@@ -13,7 +13,12 @@ type ID [IDBytesLength]byte
 
 func NewID() (id ID) {
 	buf := make([]byte, IDBytesLength)
-	rand.Read(buf)
+
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+
 	copy(id[:], buf[:IDBytesLength])
 	return id
 }
