@@ -11,10 +11,18 @@ const IDBytesLength = IDLength / 8
 // ID represents a node's ID.
 type ID [IDBytesLength]byte
 
+type randRead func([]byte) (int, error)
+
+var rng randRead
+
+func init() {
+	rng = rand.Read
+}
+
 func NewID() (id ID) {
 	buf := make([]byte, IDBytesLength)
 
-	_, err := rand.Read(buf)
+	_, err := rng(buf)
 	if err != nil {
 		panic(err)
 	}
