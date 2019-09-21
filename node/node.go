@@ -3,6 +3,8 @@ package node
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 )
 
 const IDLength = 256 // bits.
@@ -29,6 +31,17 @@ func NewID() (id ID) {
 
 	copy(id[:], buf[:IDBytesLength])
 	return id
+}
+
+func IDFromString(str string) (id ID, err error) {
+	i, err := hex.DecodeString(str)
+	if err != nil {
+		err = fmt.Errorf("cannot decode hex string as ID: %w", err)
+		return
+	}
+
+	copy(id[:], i)
+	return
 }
 
 // bytes returns the bytes slice without a fixed size for a node ID.

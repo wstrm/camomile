@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/optmzr/d7024e-dht/cmd"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+
+	"github.com/optmzr/d7024e-dht/cmd"
 )
 
 func handlePacket(conn *net.UDPConn) {
@@ -16,15 +17,18 @@ func handlePacket(conn *net.UDPConn) {
 
 func rpcServer() {
 	api := new(cmd.API)
+
 	err := rpc.Register(api)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	rpc.HandleHTTP()
 	l, err := net.Listen("tcp", ":1234")
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
+
 	err = http.Serve(l, nil)
 	if err != nil {
 		log.Fatalln(err)
@@ -32,7 +36,6 @@ func rpcServer() {
 }
 
 func main() {
-	fmt.Println("dhtnode")
 	go rpcServer()
 
 	// Listen to all addresses on port 8118.
@@ -40,6 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to resolve IP and Port, %v", err)
 	}
+
 	conn, err := net.ListenUDP("udp", udpAddress)
 	if err != nil {
 		log.Fatalf("Unable to listen at %v, %v", udpAddress.String(), err)
