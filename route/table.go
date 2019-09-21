@@ -3,6 +3,7 @@ package route
 import (
 	"container/list"
 	"encoding/binary"
+	"errors"
 	"math/bits"
 	"net"
 	"sort"
@@ -138,11 +139,25 @@ func (rt *Table) NClosest(id node.ID, n int) (contacts []Contact) {
 	}
 }
 
-// New creates a new routing table with all the buckets initialized and the
-// local node added to the last bucket.
-func New(me Contact, other Contact) (rt *Table) {
+func NewContact(id node.ID, address net.UDPAddr) Contact {
+	return Contact{
+		NodeID:  id,
+		Address: address,
+	}
+}
+
+// NewTable creates a new routing table with all the buckets initialized and the
+// local node added to the last bucket. At least one bootstrapping node must be
+// provided.
+func NewTable(me Contact, others []Contact) (rt *Table, err error) {
+	if len(others) == 0 {
+		err = errors.New("at least one bootstrap contact must be provided")
+		return
+	}
+
 	rt = new(Table)
 
+	// Create all the buckets.
 	for i := range rt {
 		rt[i] = &bucket{list.New()}
 	}
@@ -150,8 +165,10 @@ func New(me Contact, other Contact) (rt *Table) {
 	// Add local node to last bucket.
 	rt[bucketSize-1].PushFront(me)
 
-	// Add bootstrapping contact.
-	rt.Add(other)
+	// Add bootstrapping contacts.
+	for _, other := range others {
+		rt.Add(other)
+	}
 
-	return rt
+	return
 }

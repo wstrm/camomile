@@ -79,11 +79,26 @@ func TestMe(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 	rtMe := rt.me()
 
 	if !me.NodeID.Equal(rtMe.NodeID) {
 		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
+	}
+}
+
+func TestNewTable(t *testing.T) {
+	me := Contact{NodeID: zeroID()}
+	boots := []Contact{Contact{NodeID: randomID()}, Contact{NodeID: randomID()}}
+
+	_, err := NewTable(me, boots)
+	if err != nil {
+		t.Errorf("cannot create table: %w", err)
+	}
+
+	_, err = NewTable(me, []Contact{})
+	if err == nil {
+		t.Error("expected error on empty bootstrap slice")
 	}
 }
 
@@ -103,7 +118,7 @@ func TestAdd(t *testing.T) {
 	for i < 7 {
 		c1 := Contact{NodeID: makeID([]byte{1 << i})}
 
-		rt := New(me, boot)
+		rt, _ := NewTable(me, []Contact{boot})
 
 		rt.Add(c1)
 
@@ -120,11 +135,11 @@ func TestAdd(t *testing.T) {
 
 func TestDuplicateContact(t *testing.T) {
 	me := Contact{NodeID: randomID()}
-	boot := Contact{NodeID: randomID()}
+	boot := Contact{NodeID: zeroID()}
 	c1 := Contact{NodeID: randomID()}
 	d := distance(me.NodeID, c1.NodeID)
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 
 	rt.Add(c1)
 	rt.Add(c1)
@@ -140,7 +155,7 @@ func TestNClosest(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 
 	var contacts []Contact
 	var contact Contact
@@ -178,7 +193,9 @@ func TestNClosest(t *testing.T) {
 
 func BenchmarkAdd(b *testing.B) {
 	b.StopTimer()
-	rt := New(Contact{NodeID: randomID()}, Contact{NodeID: randomID()})
+	rt, _ := NewTable(
+		Contact{NodeID: randomID()},
+		[]Contact{Contact{NodeID: randomID()}})
 	b.StartTimer()
 
 	for n := 0; n < b.N; n++ {
@@ -202,7 +219,7 @@ func BenchmarkNClosest(b *testing.B) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 
 	var contacts []Contact
 	var contact Contact
