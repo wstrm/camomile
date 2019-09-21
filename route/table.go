@@ -108,9 +108,9 @@ func (rt *Table) Add(c Contact) {
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
-func (rt *Table) NClosest(id node.ID, n int) (contacts []Contact) {
+func (rt *Table) NClosest(target node.ID, n int) (contacts []Contact) {
 	me := rt.me()
-	d := distance(me.NodeID, id)
+	d := distance(me.NodeID, target)
 	index := leadingZeros(d)
 
 	var b *bucket
