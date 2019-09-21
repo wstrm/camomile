@@ -3,6 +3,7 @@ package network_test
 import (
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/packet"
+	"log"
 	"net"
 	"testing"
 )
@@ -19,7 +20,14 @@ func TestStore(t *testing.T) {
 		Payload: &packet.Packet_Store{payload},
 	}
 
-	network.Send(&net.UDPAddr{IP: []byte{127, 0, 0, 1}, Port: 8118, Zone: ""}, r)
+	udpAddress, err := net.ResolveUDPAddr("udp", ":8118")
 
+	network.Send(udpAddress, r)
 
+	conn, err := net.ListenUDP("udp", udpAddress)
+	if err != nil {
+		log.Fatalf("Unable to listen at %v, %v", udpAddress.String(), err)
+		return
+	}
+	defer conn.Close()
 }
