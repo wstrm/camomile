@@ -2,10 +2,10 @@ package dht
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/optmzr/d7024e-dht/node"
-	"github.com/optmzr/d7024e-dht/route"
 )
 
 const α = 3 // Degree of parallelism.
@@ -58,22 +58,19 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	return
 }
 
-func (dht *DHT) iterativeFindNodes(target node.ID) (contacts []route.Contact, err error) {
+func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 	network := dht.network
 	rt := dht.rt
 
 	// Holds the currently closest contact found.
 	var closest route.Contact
 
-	// Holds a slice of nodes that did not answer.
-	var dead []route.Contact
-
 	// Holds a slice of channels that are awaiting a response from the network.
 	var await []chan int // TODO(optmzr): Change to some message type.
 
 	// The first α contacts selected are used to create a *shortlist* for the
 	// search.
-	shortlist := dht.rt.NClosest(target, α)
+	sl := dht.rt.NClosest(target, α)
 
 	// Keep a map of acked contacts to make sure we do not contact the same
 	// node multiple times.
@@ -84,8 +81,14 @@ func (dht *DHT) iterativeFindNodes(target node.ID) (contacts []route.Contact, er
 	// already been queried.
 	rest := false
 
+	// Contacts holds a sorted (slice) copy of the shortlist.
+	contacts := shortlist.SortedContacts()
+
+	// Closest is the node that closest in distance to the target node ID.
+	closest := contacts[0]
+
 	for {
-		for i, contact := range shortlist {
+		for i, contact := range contacts {
 			if i >= α || !rest {
 				break // Limit to α contacts per shortlist.
 			}
@@ -95,10 +98,14 @@ func (dht *DHT) iterativeFindNodes(target node.ID) (contacts []route.Contact, er
 
 			ch, err := network.FindNode(contact.NodeID)
 			if err != nil {
-				dead = append(dead, contact)
+				sl.Remove(contact)
 			} else {
 				await = append(await, ch)
 			}
+		}
+
+		if len(await) == 0 {
+			return nil, errors.New("couldn't connect to any node")
 		}
 
 		results := make(chan int) // TODO(optmzr): Change to some result type.
@@ -108,7 +115,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) (contacts []route.Contact, er
 
 				// Network call timed out.
 				if r == nil {
-					dead = append(dead, contact)
+					sl.Remove(contact)
 					return
 				}
 
@@ -120,8 +127,35 @@ func (dht *DHT) iterativeFindNodes(target node.ID) (contacts []route.Contact, er
 			}(ch)
 		}
 
-		if len(await) > 0 {
-			// TODO(optmzr)
+		// Iterate through every result from the responding nodes and add their
+		// closest contacts to the shortlist.
+		for {
+			result := <-results
+			if result != nil {
+				// Add the responding node's closest contacts.
+				sl.Add(result.Closest...)
+			} else {
+				// Network response timed out.
+				sl.Remove(contact)
+			}
+		}
+
+		contacts = sl.SortedContacts()
+		first := contacts[0]
+		if closest.NodeID.Equal(first.NodeID) {
+			// Unchanged closest node from last run, re-run but check all the
+			// nodes in the shortlist (and not only the α closest).
+			if !rest {
+				rest = true
+				continue
+			}
+
+			// Done. Return the contacts in the shortlist sorted by distance.
+			return contacts, nil
+
+		} else {
+			// New closest node found, continue iteration.
+			closest = first
 		}
 	}
 }

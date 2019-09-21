@@ -6,7 +6,6 @@ import (
 	"errors"
 	"math/bits"
 	"net"
-	"sort"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
@@ -14,17 +13,9 @@ import (
 const bucketSize = 20
 
 type bucket struct{ *list.List }
-type candidates []Contact
 
 // Table implements a routing table according to the Kademlia specification.
 type Table [node.IDLength]*bucket
-
-// Contact contains the node ID and an UDP address.
-type Contact struct {
-	NodeID   node.ID
-	Address  net.UDPAddr
-	distance uint64
-}
 
 // leadingZeros counts the number of leading bits that are zero in an uint64.
 func leadingZeros(distance uint64) int {
@@ -40,27 +31,6 @@ func distance(a, b node.ID) uint64 {
 	}
 
 	return binary.BigEndian.Uint64(d)
-}
-
-// Len returns the number of candidates.
-func (cs candidates) Len() int {
-	return len(cs)
-}
-
-// Swap swaps the i'th and the j'th node.
-func (cs candidates) Swap(i, j int) {
-	cs[i], cs[j] = cs[j], cs[i]
-}
-
-// Less returns true if the distance of the i'th node is less than the j'th
-// node.
-func (cs candidates) Less(i, j int) bool {
-	return cs[i].distance < cs[j].distance
-}
-
-// sort sorts the candidates by their distance to the local node.
-func (cs candidates) sort() {
-	sort.Sort(cs)
 }
 
 // me returns the contact in the last bucket (the local node).
@@ -86,9 +56,9 @@ func (b *bucket) add(c Contact) {
 	}
 }
 
-// candidates returns all the candidates in a bucket including the distance to a
+// contacts returns all the contacts in a bucket including the distance to a
 // provided node ID.
-func (b *bucket) candidates(id node.ID) (c candidates) {
+func (b *bucket) contacts(id node.ID) (c Contacts) {
 	var contact Contact
 	for e := b.Front(); e != nil; e = e.Next() {
 		contact = e.Value.(Contact)
@@ -108,35 +78,33 @@ func (rt *Table) Add(c Contact) {
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
-func (rt *Table) NClosest(target node.ID, n int) (contacts []Contact) {
+func (rt *Table) NClosest(target node.ID, n int) (sl *Shortlist) {
 	me := rt.me()
 	d := distance(me.NodeID, target)
 	index := leadingZeros(d)
 
 	var b *bucket
-	var c candidates
 
 	b = rt[index]
-	c = append(c, b.candidates(me.NodeID)...)
+	sl.Add(b.contacts(me.NodeID)...)
 
 	for i := 1; c.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {
 		if index-i >= 0 {
 			b = rt[index-i]
-			c = append(c, b.candidates(me.NodeID)...)
+			sl.Add(b.contacts(me.NodeID)...)
 		}
 		if index+i < cap(rt) {
 			b = rt[index+i]
-			c = append(c, b.candidates(me.NodeID)...)
+			sl.Add(b.contacts(me.NodeID)...)
 		}
 	}
 
-	c.sort()
-
-	if c.Len() < n {
-		return c
-	} else {
-		return c[:n]
+	if sl.Len() >= n {
+		// Create new truncated shortlist with only the N closest nodes.
+		sl = NewShortlist(sl.SortedContacts()[:n])
 	}
+
+	return
 }
 
 func NewContact(id node.ID, address net.UDPAddr) Contact {
