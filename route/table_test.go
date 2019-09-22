@@ -1,6 +1,7 @@
 package route
 
 import (
+	"bytes"
 	"math/rand" // Not cryptographically secure on purpose.
 	"testing"
 
@@ -38,25 +39,25 @@ func TestDistance(t *testing.T) {
 	testTable := []struct {
 		a     node.ID
 		b     node.ID
-		dist  uint64
+		dist  Distance
 		index int
 	}{
 		{
 			a:     makeID([]byte{1}),
 			b:     makeID([]byte{1}),
-			dist:  0,
-			index: 64,
+			dist:  Distance{0},
+			index: 255,
 		},
 		{
 			a:     makeID([]byte{1}),
 			b:     makeID([]byte{2}),
-			dist:  216172782113783808,
+			dist:  Distance{3},
 			index: 6,
 		},
 		{
 			a:     makeID([]byte{1}),
 			b:     makeID([]byte{5}),
-			dist:  288230376151711744,
+			dist:  Distance{4},
 			index: 5,
 		},
 	}
@@ -64,11 +65,11 @@ func TestDistance(t *testing.T) {
 	for _, test := range testTable {
 		d := distance(test.a, test.b)
 
-		if d != test.dist {
+		if !bytes.Equal(d[:], test.dist[:]) {
 			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, exp: %d", test.a, test.b, d, test.dist)
 		}
 
-		i := leadingZeros(d)
+		i := d.BucketIndex()
 		if i != test.index {
 			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, exp: %d", test.a, test.b, i, test.index)
 		}
@@ -144,7 +145,7 @@ func TestDuplicateContact(t *testing.T) {
 	rt.Add(c1)
 	rt.Add(c1)
 
-	bucketLen := rt[leadingZeros(d)].Len()
+	bucketLen := rt[d.BucketIndex()].Len()
 	expLen := 1
 	if bucketLen != expLen {
 		t.Errorf("unexpected bucket length, %d != %d", bucketLen, expLen)

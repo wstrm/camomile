@@ -1,10 +1,9 @@
 package route
 
 import (
+	"bytes"
 	"container/list"
-	"encoding/binary"
 	"errors"
-	"math/bits"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
@@ -16,20 +15,35 @@ type bucket struct{ *list.List }
 // Table implements a routing table according to the Kademlia specification.
 type Table [node.IDLength]*bucket
 
-// leadingZeros counts the number of leading bits that are zero in an uint64.
-func leadingZeros(distance uint64) int {
-	return bits.LeadingZeros64(uint64(distance))
+// Distance represents the distance between to node IDs.
+type Distance [node.IDBytesLength]byte
+
+func (d Distance) BucketIndex() int {
+	// Count number of leading zeros.
+	for i, b := range d {
+		for j := 7; j >= 0; j-- {
+			if (b>>uint(j))&1 != 0 {
+				return i*8 + (8 - j) - 1
+			}
+		}
+	}
+
+	// If distance is zero, set index to be:
+	// 	i = (distance capacity)*8 - 1
+	// i.e. the distances 0001 and 0000 have the same prefix (000).
+	return cap(d)*8 - 1
+}
+
+func (a Distance) Less(b Distance) bool {
+	return bytes.Compare(a[:], b[:]) < 0
 }
 
 // distance calculates the XOR metric for Kademlia.
-func distance(a, b node.ID) uint64 {
-	d := make([]byte, cap(a))
-
+func distance(a, b node.ID) (d Distance) {
 	for i := range a {
 		d[i] = a[i] ^ b[i]
 	}
-
-	return binary.BigEndian.Uint64(d)
+	return
 }
 
 // me returns the contact in the last bucket (the local node).
@@ -72,7 +86,7 @@ func (rt *Table) Add(c Contact) {
 	me := rt.me()
 
 	d := distance(me.NodeID, c.NodeID)
-	b := rt[leadingZeros(d)]
+	b := rt[d.BucketIndex()]
 	b.add(c)
 }
 
@@ -80,7 +94,7 @@ func (rt *Table) Add(c Contact) {
 func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	me := rt.me()
 	d := distance(me.NodeID, target)
-	index := leadingZeros(d)
+	index := d.BucketIndex()
 
 	var b *bucket
 

@@ -57,7 +57,7 @@ func TestCandidatesSortedContacts(t *testing.T) {
 		c := sorted[i]
 		l := sorted[i-1]
 
-		if l.distance > c.distance {
+		if !l.distance.Less(c.distance) {
 			t.Errorf("unsorted contacts found in slice: %v > %v", l, c)
 		}
 	}

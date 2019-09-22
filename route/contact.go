@@ -11,7 +11,7 @@ import (
 type Contact struct {
 	NodeID   node.ID
 	Address  net.UDPAddr
-	distance uint64
+	distance Distance
 }
 
 // Contacts implements a sortable list of contacts.
@@ -45,7 +45,7 @@ func (cs Contacts) Swap(i, j int) {
 // Less returns true if the distance of the i'th node is less than the j'th
 // node.
 func (cs Contacts) Less(i, j int) bool {
-	return cs[i].distance < cs[j].distance
+	return cs[i].distance.Less(cs[j].distance)
 }
 
 // sort sorts the candidates by their distance to the local node.
