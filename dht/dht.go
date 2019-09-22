@@ -14,7 +14,22 @@ const α = 3 // Degree of parallelism.
 type Key node.ID // TODO(optmzr): use store.Key instead.
 
 type DHT struct {
-	rt *route.Table
+	rt      *route.Table
+	network *Network
+}
+
+// TODO(optmzr): Move to network.
+type Network struct{}
+
+// TODO(optmzr): Move to network.
+func (net *Network) FindNodes(target node.ID) (chan *NodeListResult, error) {
+	return make(chan *NodeListResult), nil
+}
+
+// TODO(optmzr): Move to network.
+type NodeListResult struct {
+	From    route.Contact
+	Closest []route.Contact
 }
 
 // TODO(optmzr): Move to store.
@@ -42,7 +57,7 @@ func NewDHT(me route.Contact, others []route.Contact) (dht *DHT, err error) {
 
 // Get retrieves the value for a specified key from the network.
 func (dht *DHT) Get(hash Key) (value string, err error) {
-	value, err = iterativeFindValue(hash)
+	value, err = dht.iterativeFindValue(hash)
 	return
 }
 
@@ -55,25 +70,16 @@ func (dht *DHT) Put(value string) (hash Key, err error) {
 // Join initiates a node lookup of itself to bootstrap the node into the
 // network.
 func (dht *DHT) Join(me route.Contact) (err error) {
-	_, err = iterativeFindNodes(me)
+	_, err = dht.iterativeFindNodes(me.NodeID)
 	return
-}
-
-// TODO(optmzr): Move to network.
-type NodeListResult struct {
-	From    route.Contact
-	Closest []route.Contact
 }
 
 func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 	network := dht.network
 	rt := dht.rt
 
-	// Holds the currently closest contact found.
-	var closest route.Contact
-
 	// Holds a slice of channels that are awaiting a response from the network.
-	var await []chan int // TODO(optmzr): Change to some message type.
+	var await []chan *NodeListResult
 
 	// The first α contacts selected are used to create a *shortlist* for the
 	// search.
@@ -103,7 +109,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 				continue // Ignore already acked contacts.
 			}
 
-			ch, err := network.FindNode(contact.NodeID)
+			ch, err := network.FindNodes(contact.NodeID)
 			if err != nil {
 				sl.Remove(contact)
 			} else {
@@ -115,9 +121,9 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 			return nil, errors.New("couldn't connect to any node")
 		}
 
-		results := make(chan NodeListResult)
-		for ch := range await {
-			go func(ch chan NodeListResult) {
+		results := make(chan *NodeListResult)
+		for _, ch := range await {
+			go func(ch chan *NodeListResult) {
 				defer close(ch)
 
 				// Redirect all responses to the results channel.
