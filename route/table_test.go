@@ -185,19 +185,26 @@ func TestNClosest(t *testing.T) {
 		}
 	}
 
+	// Fetch 20 closest contacts for local node.
 	closest = rt.NClosest(me.NodeID, 20)
 	n = closest.Len()
 	if n != 20 {
 		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 20)
 	}
+
+	// Fetch 30 closest contacts for bootstrap node.
+	closest = rt.NClosest(boot.NodeID, 30)
+	n = closest.Len()
+	if n != 30 {
+		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 30)
+	}
 }
 
 func BenchmarkAdd(b *testing.B) {
-	b.StopTimer()
 	rt, _ := NewTable(
 		Contact{NodeID: randomID()},
 		[]Contact{Contact{NodeID: randomID()}})
-	b.StartTimer()
+	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		rt.Add(Contact{NodeID: randomID()})
@@ -205,10 +212,9 @@ func BenchmarkAdd(b *testing.B) {
 }
 
 func BenchmarkDistance(b *testing.B) {
-	b.StopTimer()
 	id1 := randomID()
 	id2 := randomID()
-	b.StartTimer()
+	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		distance(id1, id2)
@@ -216,7 +222,6 @@ func BenchmarkDistance(b *testing.B) {
 }
 
 func BenchmarkNClosest(b *testing.B) {
-	b.StopTimer()
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
@@ -232,7 +237,7 @@ func BenchmarkNClosest(b *testing.B) {
 		contacts = append(contacts, contact)
 		rt.Add(contact)
 	}
-	b.StartTimer()
+	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		rt.NClosest(contacts[n%len(contacts)].NodeID, 10)

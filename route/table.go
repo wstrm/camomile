@@ -15,7 +15,7 @@ type bucket struct{ *list.List }
 // Table implements a routing table according to the Kademlia specification.
 type Table [node.IDLength]*bucket
 
-// Distance represents the distance between to node IDs.
+// Distance represents the distance between two node IDs.
 type Distance [node.IDBytesLength]byte
 
 func (d Distance) BucketIndex() int {
