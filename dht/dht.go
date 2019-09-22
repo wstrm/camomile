@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/route"
 )
 
 const α = 3 // Degree of parallelism.
@@ -54,8 +55,14 @@ func (dht *DHT) Put(value string) (hash Key, err error) {
 // Join initiates a node lookup of itself to bootstrap the node into the
 // network.
 func (dht *DHT) Join(me route.Contact) (err error) {
-	_, err = iterativeFindNode(me)
+	_, err = iterativeFindNodes(me)
 	return
+}
+
+// TODO(optmzr): Move to network.
+type NodeListResult struct {
+	From    route.Contact
+	Closest []route.Contact
 }
 
 func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
@@ -82,7 +89,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 	rest := false
 
 	// Contacts holds a sorted (slice) copy of the shortlist.
-	contacts := shortlist.SortedContacts()
+	contacts := sl.SortedContacts()
 
 	// Closest is the node that closest in distance to the target node ID.
 	closest := contacts[0]
@@ -108,21 +115,13 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 			return nil, errors.New("couldn't connect to any node")
 		}
 
-		results := make(chan int) // TODO(optmzr): Change to some result type.
+		results := make(chan NodeListResult)
 		for ch := range await {
-			go func(ch chan int) { // TODO(optmzr): Change to some message type.
+			go func(ch chan NodeListResult) {
+				defer close(ch)
+
+				// Redirect all responses to the results channel.
 				r := <-ch
-
-				// Network call timed out.
-				if r == nil {
-					sl.Remove(contact)
-					return
-				}
-
-				// Add node so it is moved to the top of its bucket in the
-				// routing table.
-				rt.Add(r.From) // TODO(optmzr): Result type must contain a From field.
-
 				results <- r
 			}(ch)
 		}
@@ -132,11 +131,15 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 		for {
 			result := <-results
 			if result != nil {
+				// Add node so it is moved to the top of its bucket in the
+				// routing table.
+				rt.Add(result.From)
+
 				// Add the responding node's closest contacts.
 				sl.Add(result.Closest...)
 			} else {
-				// Network response timed out.
-				sl.Remove(contact)
+				// Network call timed out. Remove the callee from the shortlist.
+				sl.Remove(result.From)
 			}
 		}
 
@@ -161,7 +164,9 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 }
 
 func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
+	return Key{}, errors.New("Not implemented")
 }
 
 func (dht *DHT) iterativeFindValue(hash Key) (value string, err error) {
+	return "", errors.New("Not implemented")
 }

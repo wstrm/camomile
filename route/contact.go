@@ -1,4 +1,4 @@
-package dht
+package route
 
 import (
 	"net"
@@ -18,8 +18,8 @@ type Contact struct {
 // Contacts implements a sortable list of contacts.
 type Contacts []Contact
 
-// Shortlist implements a set of contacts.
-type Shortlist struct {
+// Candidates implements a set of contacts.
+type Candidates struct {
 	contacts map[node.ID]route.Contact
 }
 
@@ -44,23 +44,23 @@ func (cs Contacts) sort() {
 	sort.Sort(cs)
 }
 
-func (sl *Shortlist) Add(contacts ...Contact) {
+func (sl *Candidates) Add(contacts ...Contact) {
 	for contact := range contacts {
 		sl.contacts[contact.NodeID] = contact
 	}
 }
 
-func (sl *Shortlist) Remove(contact Contact) {
+func (sl *Candidates) Remove(contact Contact) {
 	delete(sl.contacts, contact.NodeID)
 }
 
-func (sl *Shortlist) Len() int {
+func (sl *Candidates) Len() int {
 	return len(sl.contacts)
 }
 
 // SortedContacts returns all the contacts in the shortlist set sorted by their
 // distance.
-func (sl *Shortlist) SortedContacts() Contacts {
+func (sl *Candidates) SortedContacts() Contacts {
 	var contacts Contacts
 
 	for contact := range sl.contacts {
@@ -71,9 +71,9 @@ func (sl *Shortlist) SortedContacts() Contacts {
 	return contacts
 }
 
-// NewShortlist creates a new shortlist set with the provided contacts.
-func NewShortlist(contacts []route.Contact) *Shortlist {
-	sl := new(Shortlist)
+// NewCandidates creates a new shortlist set with the provided contacts.
+func NewCandidates(contacts []route.Contact) *Candidates {
+	sl := new(Candidates)
 	for contact := range contacts {
 		sl.contacts[contact.NodeID] = contact
 	}
