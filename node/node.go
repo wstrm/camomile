@@ -40,6 +40,11 @@ func IDFromString(str string) (id ID, err error) {
 		return
 	}
 
+	if len(i) != IDBytesLength {
+		err = fmt.Errorf("hex string must be %d bytes", IDBytesLength)
+		return
+	}
+
 	copy(id[:], i)
 	return
 }
