@@ -11,6 +11,10 @@ type Key NodeID
 
 var db *database
 
+var tExpire int = 86400
+var tReplicate int = 3600
+var tRepublish int = 86400
+
 type item struct {
 	value     string
 	expire    time.Time
@@ -43,10 +47,16 @@ func init() {
 	go itemHandler()
 }
 
+func setTimers(tExpire int, tReplicate int, tRepublish int) {
+	tExpire = tExpire
+	tReplicate = tReplicate
+	tRepublish = tRepublish
+}
+
 // TODO: Max 1000 chars. Truncate input string.
 func AddItem(value string, origPub NodeID) error {
 	t := time.Now()
-	expire := t.Add(time.Second * 86400)
+	expire := t.Add(time.Second * time.Duration(tExpire))
 	republish := expire
 
 	var key Key
@@ -69,7 +79,7 @@ func AddItem(value string, origPub NodeID) error {
 
 func AddKey(key Key) {
 	t := time.Now()
-	republish := t.Add(time.Second * 86400)
+	republish := t.Add(time.Second * time.Duration(tRepublish))
 
 	db.keys.Lock()
 	db.keys.m[key] = republish
@@ -113,11 +123,13 @@ func evictKey(key Key) {
 
 // Start this as a Goroutine at node start.
 func itemHandler() {
-	timer := time.NewTimer(time.Second * 1)
-	<-timer.C
-	for key, item := range db.items.m {
-		if item.expire.After(time.Now()) || item.republish.After(time.Now()) {
-			evictItem(key)
+	for true {
+		timer := time.NewTimer(time.Second * 1)
+		<-timer.C
+		for key, item := range db.items.m {
+			if item.expire.After(time.Now()) || item.republish.After(time.Now()) {
+				evictItem(key)
+			}
 		}
 	}
 }

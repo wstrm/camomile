@@ -1,6 +1,7 @@
 package store
 
 import "testing"
+import "time"
 //import "strconv"
 //import "fmt"
 //import "golang.org/x/crypto/blake2b"
@@ -188,3 +189,37 @@ func TestGetRepubTime(t *testing.T) {
 	}
 }
 
+func TestItemHandler(t *testing.T) {
+	// Test expire timeout eviction.
+	setTimers(1, 200, 200)
+
+	testVal := "q"
+
+	var testNodeID NodeID
+	copy(testNodeID[:], "w")
+
+	AddItem(testVal, testNodeID)
+
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	// After 2 seconds, check if the item  has been removed.
+	timer := time.NewTimer(time.Second * 2)
+        <-timer.C
+	_, err := GetItem(trueHash)
+	if err == nil {
+		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
+	}
+
+	// Test republish timeout eviction.
+	setTimers(200, 200, 1)
+
+	AddItem(testVal, testNodeID)
+
+	// After 2 seconds, check if the item  has been removed.
+	timer = time.NewTimer(time.Second * 2)
+        <-timer.C
+	_, err = GetItem(trueHash)
+	if err == nil {
+		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
+	}
+}
