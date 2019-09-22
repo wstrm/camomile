@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/optmzr/d7024e-dht/node"
-	"github.com/optmzr/d7024e-dht/route"
 )
 
 // Contact contains the node ID and an UDP address.
@@ -20,7 +19,7 @@ type Contacts []Contact
 
 // Candidates implements a set of contacts.
 type Candidates struct {
-	contacts map[node.ID]route.Contact
+	contacts map[node.ID]Contact
 }
 
 // Len returns the number of candidates.
@@ -72,7 +71,7 @@ func (sl *Candidates) SortedContacts() Contacts {
 }
 
 // NewCandidates creates a new shortlist set with the provided contacts.
-func NewCandidates(contacts []route.Contact) *Candidates {
+func NewCandidates(contacts []Contact) *Candidates {
 	sl := new(Candidates)
 	for contact := range contacts {
 		sl.contacts[contact.NodeID] = contact
