@@ -134,7 +134,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 
 		// Iterate through every result from the responding nodes and add their
 		// closest contacts to the shortlist.
-		for {
+		for i := 0; i < len(await); i++ {
 			result := <-results
 			if result != nil {
 				// Add node so it is moved to the top of its bucket in the
