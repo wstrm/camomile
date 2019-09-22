@@ -78,7 +78,7 @@ func (rt *Table) Add(c Contact) {
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
-func (rt *Table) NClosest(target node.ID, n int) (sl *Shortlist) {
+func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	me := rt.me()
 	d := distance(me.NodeID, target)
 	index := leadingZeros(d)
@@ -86,9 +86,9 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Shortlist) {
 	var b *bucket
 
 	b = rt[index]
-	sl.Add(b.contacts(me.NodeID)...)
+	sl = NewCandidates(b.contacts(me.NodeID)...)
 
-	for i := 1; c.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {
+	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {
 		if index-i >= 0 {
 			b = rt[index-i]
 			sl.Add(b.contacts(me.NodeID)...)
@@ -101,7 +101,7 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Shortlist) {
 
 	if sl.Len() >= n {
 		// Create new truncated shortlist with only the N closest nodes.
-		sl = NewShortlist(sl.SortedContacts()[:n])
+		sl = NewCandidates(sl.SortedContacts()[:n]...)
 	}
 
 	return

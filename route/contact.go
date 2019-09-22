@@ -17,9 +17,11 @@ type Contact struct {
 // Contacts implements a sortable list of contacts.
 type Contacts []Contact
 
+type contactMap map[node.ID]Contact
+
 // Candidates implements a set of contacts.
 type Candidates struct {
-	contacts map[node.ID]Contact
+	contacts contactMap
 }
 
 // Len returns the number of candidates.
@@ -44,7 +46,7 @@ func (cs Contacts) sort() {
 }
 
 func (sl *Candidates) Add(contacts ...Contact) {
-	for contact := range contacts {
+	for _, contact := range contacts {
 		sl.contacts[contact.NodeID] = contact
 	}
 }
@@ -62,7 +64,7 @@ func (sl *Candidates) Len() int {
 func (sl *Candidates) SortedContacts() Contacts {
 	var contacts Contacts
 
-	for contact := range sl.contacts {
+	for _, contact := range sl.contacts {
 		contacts = append(contacts, contact)
 	}
 	contacts.sort()
@@ -71,9 +73,11 @@ func (sl *Candidates) SortedContacts() Contacts {
 }
 
 // NewCandidates creates a new shortlist set with the provided contacts.
-func NewCandidates(contacts []Contact) *Candidates {
+func NewCandidates(contacts ...Contact) *Candidates {
 	sl := new(Candidates)
-	for contact := range contacts {
+	sl.contacts = make(contactMap)
+	for _, contact := range contacts {
 		sl.contacts[contact.NodeID] = contact
 	}
+	return sl
 }

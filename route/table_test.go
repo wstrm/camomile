@@ -166,14 +166,14 @@ func TestNClosest(t *testing.T) {
 	}
 
 	closest := rt.NClosest(me.NodeID, 500)
-	n := len(closest)
+	n := closest.Len()
 	if n != 32 { // 1 bootstrap node and 1 local node.
 		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 32)
 	}
 
 	for _, contact := range contacts {
 		found := false
-		for _, c := range closest {
+		for _, c := range closest.SortedContacts() {
 			if contact.NodeID.Equal(c.NodeID) {
 				found = true
 				break
@@ -185,7 +185,7 @@ func TestNClosest(t *testing.T) {
 	}
 
 	closest = rt.NClosest(me.NodeID, 20)
-	n = len(closest)
+	n = closest.Len()
 	if n != 20 {
 		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 20)
 	}
