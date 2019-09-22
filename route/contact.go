@@ -24,6 +24,14 @@ type Candidates struct {
 	contacts contactMap
 }
 
+func NewContact(target, id node.ID, address net.UDPAddr) Contact {
+	return Contact{
+		NodeID:   id,
+		Address:  address,
+		distance: distance(target, id),
+	}
+}
+
 // Len returns the number of candidates.
 func (cs Contacts) Len() int {
 	return len(cs)

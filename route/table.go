@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/bits"
-	"net"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
@@ -105,13 +104,6 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	}
 
 	return
-}
-
-func NewContact(id node.ID, address net.UDPAddr) Contact {
-	return Contact{
-		NodeID:  id,
-		Address: address,
-	}
 }
 
 // NewTable creates a new routing table with all the buckets initialized and the

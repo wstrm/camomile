@@ -42,16 +42,16 @@ func TestDistance(t *testing.T) {
 		index int
 	}{
 		{
-			a:     randomID(),
-			b:     randomID(),
-			dist:  9431948493169447405,
-			index: 0,
+			a:     makeID([]byte{1}),
+			b:     makeID([]byte{1}),
+			dist:  0,
+			index: 64,
 		},
 		{
-			a:     randomID(),
-			b:     randomID(),
-			dist:  8624543047408693312,
-			index: 1,
+			a:     makeID([]byte{1}),
+			b:     makeID([]byte{2}),
+			dist:  216172782113783808,
+			index: 6,
 		},
 		{
 			a:     makeID([]byte{1}),
@@ -65,12 +65,12 @@ func TestDistance(t *testing.T) {
 		d := distance(test.a, test.b)
 
 		if d != test.dist {
-			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, d, test.dist)
+			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, exp: %d", test.a, test.b, d, test.dist)
 		}
 
 		i := leadingZeros(d)
 		if i != test.index {
-			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, i, test.index)
+			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, exp: %d", test.a, test.b, i, test.index)
 		}
 	}
 }
@@ -134,9 +134,9 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDuplicateContact(t *testing.T) {
-	me := Contact{NodeID: randomID()}
+	me := Contact{NodeID: makeID([]byte{1})}
 	boot := Contact{NodeID: zeroID()}
-	c1 := Contact{NodeID: randomID()}
+	c1 := Contact{NodeID: makeID([]byte{2})}
 	d := distance(me.NodeID, c1.NodeID)
 
 	rt, _ := NewTable(me, []Contact{boot})
@@ -168,7 +168,7 @@ func TestNClosest(t *testing.T) {
 	closest := rt.NClosest(me.NodeID, 500)
 	n := closest.Len()
 	if n != 32 { // 1 bootstrap node and 1 local node.
-		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 32)
+		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 32)
 	}
 
 	for _, contact := range contacts {
@@ -187,7 +187,7 @@ func TestNClosest(t *testing.T) {
 	closest = rt.NClosest(me.NodeID, 20)
 	n = closest.Len()
 	if n != 20 {
-		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 20)
+		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 20)
 	}
 }
 
