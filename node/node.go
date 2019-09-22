@@ -58,3 +58,8 @@ func (n ID) bytes() []byte {
 func (a ID) Equal(b ID) bool {
 	return bytes.Equal(a.bytes(), b.bytes())
 }
+
+// String returns the hexadecimal representation of an ID as a string.
+func (a ID) String() string {
+	return hex.EncodeToString(a[:])
+}

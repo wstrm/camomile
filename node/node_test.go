@@ -56,3 +56,12 @@ func TestIDFromStringInvalidHex(t *testing.T) {
 		t.Errorf("unexpected error: %s", err.Error())
 	}
 }
+
+func TestIDString(t *testing.T) {
+	str1 := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	id, _ := IDFromString(str1)
+	str2 := id.String()
+	if str2 != str1 {
+		t.Errorf("unexpected string, got: %s, exp: %s", str2, str1)
+	}
+}
