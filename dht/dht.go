@@ -123,6 +123,8 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 
 		results := make(chan *NodeListResult)
 		for _, ch := range await {
+			// TODO(optmzr): Should this handle timeouts, or the network
+			// package?
 			go func(ch chan *NodeListResult) {
 				defer close(ch)
 
@@ -135,6 +137,8 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 		// Iterate through every result from the responding nodes and add their
 		// closest contacts to the shortlist.
 		for i := 0; i < len(await); i++ {
+			// TODO(optmzr): Should this handle timeouts, or the network
+			// package?
 			result := <-results
 			if result != nil {
 				// Add node so it is moved to the top of its bucket in the
