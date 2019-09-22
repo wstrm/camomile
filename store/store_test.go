@@ -223,3 +223,17 @@ func TestItemHandler(t *testing.T) {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}
 }
+
+func TestRepublisher(t *testing.T) {
+	setTimers(200, 200, 1)
+
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	AddKey(trueHash)
+
+	republishedKey := <-db.ch
+	if republishedKey != trueHash {
+		t.Errorf("Key did not get republished.")
+	}
+
+}

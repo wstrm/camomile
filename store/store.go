@@ -45,6 +45,7 @@ func init() {
 	db.ch = make(chan Key)
 
 	go itemHandler()
+	go republisher()
 }
 
 func setTimers(tExpire int, tReplicate int, tRepublish int) {
@@ -134,15 +135,18 @@ func itemHandler() {
 	}
 }
 
-/*
+
 // Start as Goroutine.
 // Function is responsible for republishing data that should persist on storage network.
-func (k *storedKeys) republisher(repub chan storedKey) {
-	timer := time.NewTimer(time.Second * 1)
-	for key :=range storedKeys {
-		if key.republish.After(time.Now())
-			//TODO: chan to communicate with RPC to send store command.
-			repub <- storedKey
+func republisher() {
+	for true {
+		timer := time.NewTimer(time.Second * 1)
+		<-timer.C
+		for key, repubTime := range db.keys.m {
+			if repubTime.After(time.Now()) {
+				db.ch <-key
+			}
+		}
 	}
 }
-*/
+
