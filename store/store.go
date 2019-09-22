@@ -4,6 +4,7 @@ package store
 import "time"
 import "golang.org/x/crypto/blake2b"
 import "sync"
+import "fmt"
 
 type NodeID [32]byte
 type Key NodeID
@@ -38,6 +39,8 @@ func init() {
 	db.items = items{m: make(map[Key]item)}
 	db.keys = keys{m: make(map[Key]time.Time)}
 	db.ch = make(chan Key)
+
+	go itemHandler()
 }
 
 // TODO: Max 1000 chars. Truncate input string.
@@ -64,8 +67,6 @@ func AddItem(value string, origPub NodeID) error {
 	return nil
 }
 
-
-
 func AddKey(key Key) {
 	t := time.Now()
 	republish := t.Add(time.Second * 86400)
@@ -75,24 +76,53 @@ func AddKey(key Key) {
 	db.keys.Unlock()
 }
 
-/*
-func (i *items) evict(key Key) {
-	delete(*items, key)
+func GetItem(key Key) (reqItem item, err error) {
+	db.items.RLock()
+	requestedItem, found := db.items.m[key]
+	db.items.RUnlock()
+
+	if !found {
+		err = fmt.Errorf("store: GetItem, no item matching key: %x", key)
+		return
+	}
+
+	return requestedItem, nil
 }
 
-func (k *storedKeys) evict(key Key) {
-	delete (*storedKeys, key)
+func GetRepubTime(key Key) (repubTime time.Time, err error) {
+	db.keys.RLock()
+	repubTime, found := db.keys.m[key]
+	db.keys.RUnlock()
+
+	if !found {
+		err = fmt.Errorf("store: GetRepubTime, no time matching key: %x", key)
+		return
+	}
+
+	return repubTime, nil
+}
+
+
+func evictItem(key Key) {
+	delete(db.items.m, key)
+}
+
+func evictKey(key Key) {
+	delete (db.keys.m, key)
 }
 
 // Start this as a Goroutine at node start.
-func (i *items) itemHandler() {
+func itemHandler() {
 	timer := time.NewTimer(time.Second * 1)
-	for key, item := range items {
-		if item.expire.After(time.Now()) || item.republish.After(time.Now())
-			items.evict(key)
+	<-timer.C
+	for key, item := range db.items.m {
+		if item.expire.After(time.Now()) || item.republish.After(time.Now()) {
+			evictItem(key)
+		}
 	}
 }
 
+/*
 // Start as Goroutine.
 // Function is responsible for republishing data that should persist on storage network.
 func (k *storedKeys) republisher(repub chan storedKey) {

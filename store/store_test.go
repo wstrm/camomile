@@ -21,12 +21,9 @@ func TestItemsAdd(t *testing.T) {
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
+	storedTestItem, err := GetItem(trueHash)
 
-	// TODO: Remove locks and implement Get function in store.go.
-	db.items.RLock()
-	storedTestItem, found := db.items.m[trueHash]
-	db.items.RUnlock()
-	if !found {
+	if err != nil {
 		t.Errorf("did not find entry in hash table for: %x", trueHash)
 	}
 
@@ -79,21 +76,115 @@ func BenchmarkAddItem(b *testing.B) {
 	}
 }
 
-func TestStoredKeysAdd(t *testing.T){
+func TestStoredKeysAdd(t *testing.T) {
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
 	AddKey(trueHash)
 
-	// TODO: remove locks and replace with Get function in store.go.
-	db.keys.RLock()
-	storedTestKey, found := db.keys.m[trueHash]
-	db.keys.RUnlock()
+	storedTestKey, err := GetRepubTime(trueHash)
 
-	if !found {
-		t.Errorf("Did not find entry in key hash table for: %x", trueHash)
+	if err != nil {
+		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
 	}
 
 	if storedTestKey.IsZero() {
 		t.Errorf("Key in DB has no time associated.")
 	}
 }
+
+func TestEvictItem(t *testing.T) {
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	testVal := "q"
+
+	var testNodeID NodeID
+	copy(testNodeID[:], "w")
+
+	err := AddItem(testVal, testNodeID)
+	if err != nil {
+		t.Errorf("some error in AddItem that is not yet defined")
+	}
+
+	// GetItem returns error if item is not found, this assures that something is inserted before we remove it.
+	_, err = GetItem(trueHash)
+	if err != nil {
+		t.Errorf("Item is not in the DB")
+	}
+
+	evictItem(trueHash)
+
+	// GetItem should error which assures that the item is no longer found in the item DB.
+	_, err = GetItem(trueHash)
+	if err == nil {
+		t.Errorf("Expected error since item should be removed at this step")
+	}
+}
+
+func TestEvictKey(t *testing.T) {
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	AddKey(trueHash)
+
+	// Assure that key is found in key DB.
+	_, err := GetRepubTime(trueHash)
+	if err != nil {
+		t.Errorf("Key no found in key DB")
+	}
+
+	// Remove the key from the DB.
+	evictKey(trueHash)
+
+	// Assure that key is no longer found in key DB.
+	_, err = GetRepubTime(trueHash)
+	if err == nil {
+		t.Errorf("Expected error since key should be removed at this step.")
+	}
+}
+
+func TestGetItem(t *testing.T) {
+	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	testVal := "q"
+
+	var testNodeID NodeID
+	copy(testNodeID[:], "w")
+
+	err := AddItem(testVal, testNodeID)
+	if err != nil {
+		t.Errorf("Some error in AddItem that is not yet defined")
+	}
+
+	_, err = GetItem(fakeHash)
+	if err == nil {
+		t.Errorf("Found item that was never inserted.")
+	}
+
+	_, err = GetItem(trueHash)
+	if err != nil {
+		t.Errorf("No such items stored in item DB.")
+	}
+}
+
+
+func TestGetRepubTime(t *testing.T) {
+	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	AddKey(trueHash)
+
+	storedTestKey, err := GetRepubTime(trueHash)
+	if err != nil {
+		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
+	}
+
+	if storedTestKey.IsZero() {
+		t.Errorf("Key in DB has no time associated.")
+	}
+
+	_, err = GetRepubTime(fakeHash)
+	if err == nil {
+		t.Errorf("Found entry in key DB for value that was never inserted.")
+	}
+}
+

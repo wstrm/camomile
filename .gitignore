@@ -1,3 +1,4 @@
 *.pb.go
 *.out
 *.swp
+*.pdf
