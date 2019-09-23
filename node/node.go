@@ -31,12 +31,12 @@ func NewID() (id ID) {
 	return id
 }
 
-// bytes returns the bytes slice without a fixed size for a node ID.
-func (n ID) bytes() []byte {
+// Bytes returns the bytes slice without a fixed size for a node ID.
+func (n ID) Bytes() []byte {
 	return n[:]
 }
 
 // Equal compares the node ID with another.
 func (a ID) Equal(b ID) bool {
-	return bytes.Equal(a.bytes(), b.bytes())
+	return bytes.Equal(a.Bytes(), b.Bytes())
 }
