@@ -2,12 +2,11 @@ package store
 
 import "testing"
 import "time"
+
 //import "strconv"
 //import "fmt"
 //import "golang.org/x/crypto/blake2b"
 //import "encoding/hex"
-
-
 
 func TestItemsAdd(t *testing.T) {
 	testVal := "q"
@@ -36,7 +35,7 @@ func TestItemsAdd(t *testing.T) {
 		t.Errorf("NodeID stored does not match original NodeID.\nExpected: %x\nGot: %x", testNodeID, storedTestItem.origPub)
 	}
 
-	if storedTestItem.expire.IsZero() || storedTestItem.republish.IsZero(){
+	if storedTestItem.expire.IsZero() || storedTestItem.republish.IsZero() {
 		t.Errorf("Expire or republish time is not set")
 	}
 }
@@ -45,35 +44,39 @@ func BenchmarkAddItem(b *testing.B) {
 
 	testVal := []string{
 		"fearlessness",
-                 "purification of one's existence",
-                 "cultivation of spritual knowledge",
-                 "charity",
-                 "self-control",
-                 "performance of sacrifice",
-                 "study of the Vedas",
-                 "austerity and simplicity",
-                 "non-violence",
-                 "truthfulness",
-                 "freedom from anger",
-                 "renunciation",
-                 "tranquility",
-                 "aversion to faultfinding",
-                 "compassion and freedom from covetousness",
-                 "gentleness",
-                 "modesty and steady determination",
-                 "vigor",
-                 "forgiveness",
-                 "fortitude",
-                 "cleanliness",
-                 "freedom from envy and the passion for honor",
-	 }
+		"purification of one's existence",
+		"cultivation of spritual knowledge",
+		"charity",
+		"self-control",
+		"performance of sacrifice",
+		"study of the Vedas",
+		"austerity and simplicity",
+		"non-violence",
+		"truthfulness",
+		"freedom from anger",
+		"renunciation",
+		"tranquility",
+		"aversion to faultfinding",
+		"compassion and freedom from covetousness",
+		"gentleness",
+		"modesty and steady determination",
+		"vigor",
+		"forgiveness",
+		"fortitude",
+		"cleanliness",
+		"freedom from envy and the passion for honor",
+	}
 
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		AddItem(testVal[i%len(testVal)], testNodeID)
+		err := AddItem(testVal[i%len(testVal)], testNodeID)
+
+		if err != nil {
+			b.Errorf("some error in AddItem that is not yet defined")
+		}
 	}
 }
 
@@ -121,27 +124,6 @@ func TestEvictItem(t *testing.T) {
 	}
 }
 
-func TestEvictKey(t *testing.T) {
-	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
-
-	AddKey(trueHash)
-
-	// Assure that key is found in key DB.
-	_, err := GetRepubTime(trueHash)
-	if err != nil {
-		t.Errorf("Key no found in key DB")
-	}
-
-	// Remove the key from the DB.
-	evictKey(trueHash)
-
-	// Assure that key is no longer found in key DB.
-	_, err = GetRepubTime(trueHash)
-	if err == nil {
-		t.Errorf("Expected error since key should be removed at this step.")
-	}
-}
-
 func TestGetItem(t *testing.T) {
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
@@ -167,7 +149,6 @@ func TestGetItem(t *testing.T) {
 	}
 }
 
-
 func TestGetRepubTime(t *testing.T) {
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
@@ -189,7 +170,15 @@ func TestGetRepubTime(t *testing.T) {
 	}
 }
 
+func setTimers(expire int, replicate int, republish int) {
+	tExpire = time.Duration(expire) * time.Second
+	tReplicate = time.Duration(replicate) * time.Second
+	tRepublish = time.Duration(republish) * time.Second
+}
+
 func TestItemHandler(t *testing.T) {
+	setup()
+
 	// Test expire timeout eviction.
 	setTimers(1, 200, 200)
 
@@ -198,14 +187,18 @@ func TestItemHandler(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	AddItem(testVal, testNodeID)
+	err := AddItem(testVal, testNodeID)
+	if err != nil {
+		t.Errorf("some error in AddItem that is not yet defined")
+	}
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
 	// After 2 seconds, check if the item  has been removed.
-	timer := time.NewTimer(time.Second * 2)
-        <-timer.C
-	_, err := GetItem(trueHash)
+	timer := time.NewTimer(time.Second * 5)
+	<-timer.C
+
+	_, err = GetItem(trueHash)
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}
@@ -213,11 +206,15 @@ func TestItemHandler(t *testing.T) {
 	// Test republish timeout eviction.
 	setTimers(200, 200, 1)
 
-	AddItem(testVal, testNodeID)
+	err = AddItem(testVal, testNodeID)
+	if err != nil {
+		t.Errorf("some error in AddItem that is not yet defined")
+	}
 
 	// After 2 seconds, check if the item  has been removed.
-	timer = time.NewTimer(time.Second * 2)
-        <-timer.C
+	timer = time.NewTimer(time.Second * 3)
+	<-timer.C
+
 	_, err = GetItem(trueHash)
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
@@ -235,5 +232,17 @@ func TestRepublisher(t *testing.T) {
 	if republishedKey != trueHash {
 		t.Errorf("Key did not get republished.")
 	}
+}
 
+func TestReplication(t *testing.T) {
+	setTimers(200, 1, 200)
+
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	AddKey(trueHash)
+
+	replicatedKey := <-db.ch
+	if replicatedKey != trueHash {
+		t.Errorf("Key did not get replicated")
+	}
 }
