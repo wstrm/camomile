@@ -188,14 +188,19 @@ func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
 		return
 	}
 
+	var stored []route.Contact
 	for _, contact := range contacts {
-		err = dht.network.Store(value, contact.Address)
-		if err != nil {
-			return // TODO(optmzr): Collect errors?
+		if e := dht.network.Store(value, contact.Address); e != nil {
+			log.Printf("Failed to store at %s (%s): %v",
+				contact.NodeID.String(), contact.Address.String(), e)
+		} else {
+			stored = append(stored, contact)
 		}
 	}
 
-	logStoredAt(hash, contacts)
+	if len(stored) > 0 {
+		logStoredAt(hash, stored)
+	}
 
 	return
 }
