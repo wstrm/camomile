@@ -1,7 +1,7 @@
 package dht
 
 import (
-	"fmt"
+	"bytes"
 	"io/ioutil"
 	"log"
 	"math/rand" // Insecure on purpose due to testing.
@@ -88,7 +88,7 @@ func (net *udpNetwork) Store(_ string, address net.UDPAddr) error {
 }
 
 func TestJoin(t *testing.T) {
-	d, err := New(me, others, new(udpNetwork))
+	d, err := New(me, others[:1], new(udpNetwork))
 	if err != nil {
 		t.Errorf("unexpected error: %w", err)
 	}
@@ -100,7 +100,7 @@ func TestJoin(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	d, err := New(me, others, new(udpNetwork))
+	d, err := New(me, others[:1], new(udpNetwork))
 	if err != nil {
 		t.Errorf("unexpected error: %w", err)
 	}
@@ -110,5 +110,13 @@ func TestPut(t *testing.T) {
 		t.Errorf("unexpected error: %w", err)
 	}
 
-	fmt.Println(hash)
+	expHash := Key{
+		189, 224, 233, 246, 233, 211, 250, 189, 91, 246, 132, 158, 23, 159, 10,
+		238, 72, 86, 48, 246, 213, 193, 196, 57, 133, 23, 204, 21, 67, 251, 147,
+		134,
+	}
+
+	if !bytes.Equal(hash[:], expHash[:]) {
+		t.Errorf("unexpected hash, got: %v, exp: %v", hash, expHash)
+	}
 }

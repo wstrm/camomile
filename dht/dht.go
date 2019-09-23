@@ -45,6 +45,10 @@ func KeyFromString(str string) (key Key, err error) {
 	return
 }
 
+func (k Key) String() string {
+	return hex.EncodeToString(k[:])
+}
+
 func New(me route.Contact, others []route.Contact, network Network) (dht *DHT, err error) {
 	dht = new(DHT)
 	dht.rt, err = route.NewTable(me, others)
@@ -191,6 +195,8 @@ func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
 		}
 	}
 
+	logStoredAt(hash, contacts)
+
 	return
 }
 
@@ -198,8 +204,18 @@ func (dht *DHT) iterativeFindValue(hash Key) (value string, err error) {
 	return "", errors.New("Not implemented")
 }
 
+func logStoredAt(hash Key, contacts []route.Contact) {
+	log.Printf("Stored value with hash %v at %d nodes:\n",
+		hash.String(), len(contacts))
+	logContacts(contacts)
+}
+
 func logAcquaintedWith(contacts []route.Contact) {
 	log.Printf("Acquainted with %d nodes:\n", len(contacts))
+	logContacts(contacts)
+}
+
+func logContacts(contacts []route.Contact) {
 	for _, contact := range contacts {
 		log.Println("\t", contact.NodeID.String())
 	}
