@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand" // Insecure on purpose due to testing.
@@ -81,6 +82,11 @@ func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan *Nod
 	return ch, nil
 }
 
+// Store mocks a Store by immediately returning.
+func (net *udpNetwork) Store(_ string, address net.UDPAddr) error {
+	return nil
+}
+
 func TestJoin(t *testing.T) {
 	d, err := New(me, others, new(udpNetwork))
 	if err != nil {
@@ -91,4 +97,18 @@ func TestJoin(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %w", err)
 	}
+}
+
+func TestPut(t *testing.T) {
+	d, err := New(me, others, new(udpNetwork))
+	if err != nil {
+		t.Errorf("unexpected error: %w", err)
+	}
+
+	hash, err := d.Put("ABC, du är mina tankar")
+	if err != nil {
+		t.Errorf("unexpected error: %w", err)
+	}
+
+	fmt.Println(hash)
 }

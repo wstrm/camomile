@@ -9,6 +9,7 @@ import (
 
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
+	"golang.org/x/crypto/blake2b"
 )
 
 const α = 3 // Degree of parallelism.
@@ -23,6 +24,7 @@ type DHT struct {
 // TODO(optmzr): Move to network.
 type Network interface {
 	FindNodes(target node.ID, address net.UDPAddr) (chan *NodeListResult, error)
+	Store(value string, address net.UDPAddr) error
 }
 
 // TODO(optmzr): Move to network.
@@ -175,7 +177,21 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 }
 
 func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
-	return Key{}, errors.New("Not implemented")
+	hash = blake2b.Sum256([]byte(value))
+
+	contacts, err := dht.iterativeFindNodes(node.ID(hash))
+	if err != nil {
+		return
+	}
+
+	for _, contact := range contacts {
+		err = dht.network.Store(value, contact.Address)
+		if err != nil {
+			return // TODO(optmzr): Collect errors?
+		}
+	}
+
+	return
 }
 
 func (dht *DHT) iterativeFindValue(hash Key) (value string, err error) {
