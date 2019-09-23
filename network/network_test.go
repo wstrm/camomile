@@ -1,27 +1,37 @@
-package network_test
+package network
 
 import (
-	"github.com/optmzr/d7024e-dht/network"
-	"log"
+	"github.com/optmzr/d7024e-dht/node"
 	"net"
 	"testing"
 )
 
 const value  = "ABC, du är mina tankar."
 
-func TestStore(t *testing.T) {
-	udpAddress, err := net.ResolveUDPAddr("udp", network.UdpPort)
+func TestFindValue(t *testing.T) {
+	udpAddr, err := net.ResolveUDPAddr("udp", UdpPort)
 	if err != nil {
-		log.Fatalln("Unable to resolve UDP address", err)
+		panic(err)
 	}
 
-	ch := make(chan string)
-	go network.ListenUDP(ch)
+	n := NewUDPNetwork(node.NewID())
 
-	network.Store(udpAddress, []byte{100}, value)
-	s := <- ch
-	log.Println(s)
-	if s != value {
-		t.Errorf("Expected: %s, got: %s", value, s)
+	rng = func(_ []byte) (int, error) {
+		return 0, nil
+	}
+
+	ch, err := n.FindValue(Key{}, udpAddr)
+
+	err = n.SendValue(Key{}, value, PacketID{}, udpAddr)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r := <- ch
+	res := r.Value
+
+	if res != value {
+		t.Errorf("Expected: %s Got: %s", value, res)
 	}
 }
+
