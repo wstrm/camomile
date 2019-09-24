@@ -31,6 +31,11 @@ func NewID() (id ID) {
 	return id
 }
 
+func IDFromBytes(b []byte) (id ID) {
+	copy(id[:], b)
+	return
+}
+
 // Bytes returns the bytes slice without a fixed size for a node ID.
 func (n ID) Bytes() []byte {
 	return n[:]
