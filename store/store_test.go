@@ -9,19 +9,21 @@ import "time"
 //import "encoding/hex"
 
 func TestItemsAdd(t *testing.T) {
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+
 	testVal := "q"
 
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := AddItem(testVal, testNodeID)
+	err := db.AddItem(testVal, testNodeID)
 	if err != nil {
 		t.Errorf("some error in AddItem that is not yet defined")
 	}
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	storedTestItem, err := GetItem(trueHash)
+	storedTestItem, err := db.GetItem(trueHash)
 
 	if err != nil {
 		t.Errorf("did not find entry in hash table for: %x", trueHash)
@@ -41,6 +43,8 @@ func TestItemsAdd(t *testing.T) {
 }
 
 func BenchmarkAddItem(b *testing.B) {
+
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	testVal := []string{
 		"fearlessness",
@@ -72,7 +76,7 @@ func BenchmarkAddItem(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := AddItem(testVal[i%len(testVal)], testNodeID)
+		err := db.AddItem(testVal[i%len(testVal)], testNodeID)
 
 		if err != nil {
 			b.Errorf("some error in AddItem that is not yet defined")
@@ -81,11 +85,13 @@ func BenchmarkAddItem(b *testing.B) {
 }
 
 func TestStoredKeysAdd(t *testing.T) {
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	AddKey(trueHash)
+	db.AddKey(trueHash)
 
-	storedTestKey, err := GetRepubTime(trueHash)
+	storedTestKey, err := db.GetRepubTime(trueHash)
 
 	if err != nil {
 		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
@@ -97,6 +103,8 @@ func TestStoredKeysAdd(t *testing.T) {
 }
 
 func TestEvictItem(t *testing.T) {
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
 	testVal := "q"
@@ -104,27 +112,29 @@ func TestEvictItem(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := AddItem(testVal, testNodeID)
+	err := db.AddItem(testVal, testNodeID)
 	if err != nil {
 		t.Errorf("some error in AddItem that is not yet defined")
 	}
 
 	// GetItem returns error if item is not found, this assures that something is inserted before we remove it.
-	_, err = GetItem(trueHash)
+	_, err = db.GetItem(trueHash)
 	if err != nil {
 		t.Errorf("Item is not in the DB")
 	}
 
-	evictItem(trueHash)
+	db.evictItem(trueHash)
 
 	// GetItem should error which assures that the item is no longer found in the item DB.
-	_, err = GetItem(trueHash)
+	_, err = db.GetItem(trueHash)
 	if err == nil {
 		t.Errorf("Expected error since item should be removed at this step")
 	}
 }
 
 func TestGetItem(t *testing.T) {
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
@@ -133,29 +143,31 @@ func TestGetItem(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := AddItem(testVal, testNodeID)
+	err := db.AddItem(testVal, testNodeID)
 	if err != nil {
 		t.Errorf("Some error in AddItem that is not yet defined")
 	}
 
-	_, err = GetItem(fakeHash)
+	_, err = db.GetItem(fakeHash)
 	if err == nil {
 		t.Errorf("Found item that was never inserted.")
 	}
 
-	_, err = GetItem(trueHash)
+	_, err = db.GetItem(trueHash)
 	if err != nil {
 		t.Errorf("No such items stored in item DB.")
 	}
 }
 
 func TestGetRepubTime(t *testing.T) {
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	AddKey(trueHash)
+	db.AddKey(trueHash)
 
-	storedTestKey, err := GetRepubTime(trueHash)
+	storedTestKey, err := db.GetRepubTime(trueHash)
 	if err != nil {
 		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
 	}
@@ -164,30 +176,21 @@ func TestGetRepubTime(t *testing.T) {
 		t.Errorf("Key in DB has no time associated.")
 	}
 
-	_, err = GetRepubTime(fakeHash)
+	_, err = db.GetRepubTime(fakeHash)
 	if err == nil {
 		t.Errorf("Found entry in key DB for value that was never inserted.")
 	}
 }
 
-func setTimers(expire int, replicate int, republish int) {
-	tExpire = time.Duration(expire) * time.Second
-	tReplicate = time.Duration(replicate) * time.Second
-	tRepublish = time.Duration(republish) * time.Second
-}
-
 func TestItemHandler(t *testing.T) {
-	setup()
-
-	// Test expire timeout eviction.
-	setTimers(1, 200, 200)
+	db := NewDatabase(time.Second*0, time.Second*3600, time.Second*86400)
 
 	testVal := "q"
 
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := AddItem(testVal, testNodeID)
+	err := db.AddItem(testVal, testNodeID)
 	if err != nil {
 		t.Errorf("some error in AddItem that is not yet defined")
 	}
@@ -195,38 +198,39 @@ func TestItemHandler(t *testing.T) {
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
 	// After 2 seconds, check if the item  has been removed.
-	timer := time.NewTimer(time.Second * 5)
+	timer := time.NewTimer(time.Second * 3)
 	<-timer.C
 
-	_, err = GetItem(trueHash)
+	_, err = db.GetItem(trueHash)
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}
+	/*
 
-	// Test republish timeout eviction.
-	setTimers(200, 200, 1)
+		db = NewDatabase(time.Second * 86400, time.Second * 3600, time.Second * 0)
 
-	err = AddItem(testVal, testNodeID)
-	if err != nil {
-		t.Errorf("some error in AddItem that is not yet defined")
-	}
+		err = db.AddItem(testVal, testNodeID)
+		if err != nil {
+			t.Errorf("some error in AddItem that is not yet defined")
+		}
 
-	// After 2 seconds, check if the item  has been removed.
-	timer = time.NewTimer(time.Second * 3)
-	<-timer.C
+		// After 2 seconds, check if the item  has been removed.
+		timer = time.NewTimer(time.Second * 3)
+		<-timer.C
 
-	_, err = GetItem(trueHash)
-	if err == nil {
-		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
-	}
+		_, err = db.GetItem(trueHash)
+		if err == nil {
+			t.Errorf("Item is still in DB after 2 seconds, handler not working.")
+		}
+	*/
 }
 
 func TestRepublisher(t *testing.T) {
-	setTimers(200, 200, 1)
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	AddKey(trueHash)
+	db.AddKey(trueHash)
 
 	republishedKey := <-db.ch
 	if republishedKey != trueHash {
@@ -235,11 +239,11 @@ func TestRepublisher(t *testing.T) {
 }
 
 func TestReplication(t *testing.T) {
-	setTimers(200, 1, 200)
+	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	AddKey(trueHash)
+	db.AddKey(trueHash)
 
 	replicatedKey := <-db.ch
 	if replicatedKey != trueHash {

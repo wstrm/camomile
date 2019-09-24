@@ -9,13 +9,6 @@ import "fmt"
 type NodeID [32]byte
 type Key NodeID
 
-var db *database
-
-var tExpire = 86400 * time.Second
-var tReplicate = 3600 * time.Second
-var tRepublish = 86400 * time.Second
-
-
 type item struct {
 	value     string
 	expire    time.Time
@@ -38,35 +31,40 @@ type replicate struct {
 	time time.Time
 }
 
-type database struct {
-	items     items
-	keys      keys
-	ch        chan (Key)
-	replicate replicate
+type Database struct {
+	items      items
+	keys       keys
+	ch         chan (Key)
+	replicate  replicate
+	tExpire    time.Duration
+	tReplicate time.Duration
+	tRepublish time.Duration
 }
 
-func setup() {
-	db = new(database)
+func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
+	db := new(Database)
+
+	db.tExpire = tExpire
+	db.tReplicate = tReplicate
+	db.tRepublish = tRepublish
+
 	db.items = items{m: make(map[Key]item)}
 	db.keys = keys{m: make(map[Key]time.Time)}
 	db.ch = make(chan Key)
-	setReplicate()
+
+	go db.itemHandler()
+	go db.republisher()
+
+	return db
 }
 
-func init() {
-	setup()
-
-	go itemHandler()
-	go republisher()
-}
-
-func setReplicate() {
+func (db *Database) setReplicate() {
 	db.replicate.Lock()
-	db.replicate.time = time.Now().Add(time.Duration(tReplicate))
+	db.replicate.time = time.Now().Add(time.Duration(db.tReplicate))
 	db.replicate.Unlock()
 }
 
-func getReplicate() time.Time {
+func (db *Database) getReplicate() time.Time {
 	db.replicate.RLock()
 	time := db.replicate.time
 	db.replicate.RUnlock()
@@ -75,9 +73,9 @@ func getReplicate() time.Time {
 }
 
 // TODO: Max 1000 chars. Truncate input string.
-func AddItem(value string, origPub NodeID) error {
+func (db *Database) AddItem(value string, origPub NodeID) error {
 	t := time.Now()
-	expire := t.Add(tExpire)
+	expire := t.Add(db.tExpire)
 	republish := expire
 
 	key := Key(blake2b.Sum256([]byte(value)))
@@ -97,16 +95,16 @@ func AddItem(value string, origPub NodeID) error {
 	return nil
 }
 
-func AddKey(key Key) {
+func (db *Database) AddKey(key Key) {
 	t := time.Now()
-	republish := t.Add(tRepublish)
+	republish := t.Add(db.tRepublish)
 
 	db.keys.Lock()
 	db.keys.m[key] = republish
 	db.keys.Unlock()
 }
 
-func GetItem(key Key) (reqItem item, err error) {
+func (db *Database) GetItem(key Key) (reqItem item, err error) {
 	db.items.RLock()
 	requestedItem, found := db.items.m[key]
 	db.items.RUnlock()
@@ -119,7 +117,7 @@ func GetItem(key Key) (reqItem item, err error) {
 	return requestedItem, nil
 }
 
-func GetRepubTime(key Key) (repubTime time.Time, err error) {
+func (db *Database) GetRepubTime(key Key) (repubTime time.Time, err error) {
 	db.keys.RLock()
 	repubTime, found := db.keys.m[key]
 	db.keys.RUnlock()
@@ -132,14 +130,14 @@ func GetRepubTime(key Key) (repubTime time.Time, err error) {
 	return repubTime, nil
 }
 
-func evictItem(key Key) {
+func (db *Database) evictItem(key Key) {
 	db.items.Lock()
 	delete(db.items.m, key)
 	db.items.Unlock()
 }
 
 // Start this as a Goroutine at node start.
-func itemHandler() {
+func (db *Database) itemHandler() {
 	for {
 		timer := time.NewTimer(time.Second * 1)
 		<-timer.C
@@ -149,32 +147,31 @@ func itemHandler() {
 
 		db.items.RLock()
 		for key, item := range db.items.m {
-			if item.expire.After(now) || item.republish.After(now) {
+			if now.After(item.expire) || now.After(item.republish) {
 				evictees = append(evictees, key)
 			}
 		}
 		db.items.RUnlock()
 
 		for _, key := range evictees {
-			evictItem(key)
+			db.evictItem(key)
 		}
 	}
 }
 
 // Start as Goroutine.
 // Function is responsible for republishing data that should persist on storage network.
-func republisher() {
+func (db *Database) republisher() {
 	for {
 		timer := time.NewTimer(time.Second * 1)
 		<-timer.C
 
 		now := time.Now()
-		replTime := getReplicate()
-		replicate := replTime.After(now)
+		replicate := now.After(db.getReplicate())
 
 		db.keys.RLock()
 		for key, repubTime := range db.keys.m {
-			if repubTime.After(now) {
+			if now.After(repubTime) {
 				db.ch <- key
 			} else if replicate {
 				// Replication event, replicate all stored values to k nodes.
@@ -185,7 +182,7 @@ func republisher() {
 
 		// If a replication event just happened, reset the replication timer.
 		if replicate {
-			setReplicate()
+			db.setReplicate()
 		}
 	}
 }
