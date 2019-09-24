@@ -9,7 +9,7 @@ import "time"
 //import "encoding/hex"
 
 func TestItemsAdd(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	testVal := "q"
 
@@ -44,7 +44,7 @@ func TestItemsAdd(t *testing.T) {
 
 func BenchmarkAddItem(b *testing.B) {
 
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	testVal := []string{
 		"fearlessness",
@@ -85,7 +85,7 @@ func BenchmarkAddItem(b *testing.B) {
 }
 
 func TestStoredKeysAdd(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	testVal := "q"
@@ -104,7 +104,7 @@ func TestStoredKeysAdd(t *testing.T) {
 }
 
 func TestEvictItem(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
@@ -134,7 +134,7 @@ func TestEvictItem(t *testing.T) {
 }
 
 func TestGetItem(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
@@ -161,7 +161,7 @@ func TestGetItem(t *testing.T) {
 }
 
 func TestGetRepubTime(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
@@ -185,7 +185,7 @@ func TestGetRepubTime(t *testing.T) {
 }
 
 func TestItemHandler(t *testing.T) {
-	db := NewDatabase(time.Second*0, time.Second*3600, time.Second*86400)
+	db, _ := NewDatabase(time.Second*0, time.Second*3600, time.Second*86400)
 
 	testVal := "q"
 
@@ -212,7 +212,7 @@ func TestItemHandler(t *testing.T) {
 
 func TestItemHandlerRepub(t *testing.T) {
 
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
 	testVal := "q"
 
 	var testNodeID NodeID
@@ -235,7 +235,7 @@ func TestItemHandlerRepub(t *testing.T) {
 }
 
 func TestRepublisher(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
+	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	testVal := "q"
@@ -249,7 +249,7 @@ func TestRepublisher(t *testing.T) {
 }
 
 func TestReplication(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400)
+	db, _ := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	testVal := "q"

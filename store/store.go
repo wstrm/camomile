@@ -46,7 +46,7 @@ type Database struct {
 	tRepublish time.Duration
 }
 
-func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
+func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) (*Database, chan localItem) {
 	db := new(Database)
 
 	db.tExpire = tExpire
@@ -60,7 +60,7 @@ func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
 	go db.itemHandler()
 	go db.republishHandler()
 
-	return db
+	return db, db.ch
 }
 
 func (db *Database) setReplicate() {
