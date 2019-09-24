@@ -15,6 +15,7 @@ var tExpire = 86400 * time.Second
 var tReplicate = 3600 * time.Second
 var tRepublish = 86400 * time.Second
 
+
 type item struct {
 	value     string
 	expire    time.Time
@@ -32,11 +33,16 @@ type keys struct {
 	m map[Key]time.Time
 }
 
+type replicate struct {
+	sync.RWMutex
+	time time.Time
+}
+
 type database struct {
 	items     items
 	keys      keys
 	ch        chan (Key)
-	replicate time.Time
+	replicate replicate
 }
 
 func setup() {
@@ -44,8 +50,7 @@ func setup() {
 	db.items = items{m: make(map[Key]item)}
 	db.keys = keys{m: make(map[Key]time.Time)}
 	db.ch = make(chan Key)
-	db.replicate = time.Now().Add(time.Duration(tReplicate))
-
+	setReplicate()
 }
 
 func init() {
@@ -53,6 +58,20 @@ func init() {
 
 	go itemHandler()
 	go republisher()
+}
+
+func setReplicate() {
+	db.replicate.Lock()
+	db.replicate.time = time.Now().Add(time.Duration(tReplicate))
+	db.replicate.Unlock()
+}
+
+func getReplicate() time.Time {
+	db.replicate.RLock()
+	time := db.replicate.time
+	db.replicate.RUnlock()
+
+	return time
 }
 
 // TODO: Max 1000 chars. Truncate input string.
@@ -150,7 +169,8 @@ func republisher() {
 		<-timer.C
 
 		now := time.Now()
-		replicate := db.replicate.After(now)
+		replTime := getReplicate()
+		replicate := replTime.After(now)
 
 		db.keys.RLock()
 		for key, repubTime := range db.keys.m {
@@ -165,7 +185,7 @@ func republisher() {
 
 		// If a replication event just happened, reset the replication timer.
 		if replicate {
-			db.replicate = now.Add(tReplicate)
+			setReplicate()
 		}
 	}
 }
