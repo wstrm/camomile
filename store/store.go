@@ -16,14 +16,19 @@ type item struct {
 	origPub   NodeID
 }
 
+type localItem struct {
+	value     string
+	repubTime time.Time
+}
+
 type items struct {
 	sync.RWMutex
 	m map[Key]item
 }
 
-type keys struct {
+type localItems struct {
 	sync.RWMutex
-	m map[Key]time.Time
+	m map[Key]localItem
 }
 
 type replicate struct {
@@ -33,8 +38,8 @@ type replicate struct {
 
 type Database struct {
 	items      items
-	keys       keys
-	ch         chan (Key)
+	localItems localItems
+	ch         chan (localItem)
 	replicate  replicate
 	tExpire    time.Duration
 	tReplicate time.Duration
@@ -49,11 +54,11 @@ func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
 	db.tRepublish = tRepublish
 
 	db.items = items{m: make(map[Key]item)}
-	db.keys = keys{m: make(map[Key]time.Time)}
-	db.ch = make(chan Key)
+	db.localItems = localItems{m: make(map[Key]localItem)}
+	db.ch = make(chan localItem)
 
 	go db.itemHandler()
-	go db.republisher()
+	go db.republishHandler()
 
 	return db
 }
@@ -76,7 +81,7 @@ func (db *Database) getReplicate() time.Time {
 func (db *Database) AddItem(value string, origPub NodeID) error {
 	t := time.Now()
 	expire := t.Add(db.tExpire)
-	republish := expire
+	republish := t.Add(db.tRepublish)
 
 	key := Key(blake2b.Sum256([]byte(value)))
 
@@ -95,13 +100,17 @@ func (db *Database) AddItem(value string, origPub NodeID) error {
 	return nil
 }
 
-func (db *Database) AddKey(key Key) {
+func (db *Database) AddLocalItem(key Key, value string) {
 	t := time.Now()
-	republish := t.Add(db.tRepublish)
 
-	db.keys.Lock()
-	db.keys.m[key] = republish
-	db.keys.Unlock()
+	newLocalItem := localItem{}
+
+	newLocalItem.value = value
+	newLocalItem.repubTime = t.Add(db.tRepublish)
+
+	db.localItems.Lock()
+	db.localItems.m[key] = newLocalItem
+	db.localItems.Unlock()
 }
 
 func (db *Database) GetItem(key Key) (reqItem item, err error) {
@@ -117,17 +126,32 @@ func (db *Database) GetItem(key Key) (reqItem item, err error) {
 	return requestedItem, nil
 }
 
+/*
 func (db *Database) GetRepubTime(key Key) (repubTime time.Time, err error) {
-	db.keys.RLock()
-	repubTime, found := db.keys.m[key]
-	db.keys.RUnlock()
+	db.localItems.RLock()
+	localItem, found := db.localItems.m[key]
+	db.localItems.RUnlock()
 
 	if !found {
 		err = fmt.Errorf("store: GetRepubTime, no time matching key: %x", key)
 		return
 	}
 
-	return repubTime, nil
+	return localItem.repubTime, nil
+}
+*/
+
+func (db *Database) GetLocalItem(key Key) (reqLocalItem localItem, err error) {
+	db.localItems.RLock()
+	localItem, found := db.localItems.m[key]
+	db.localItems.RUnlock()
+
+	if !found {
+		err = fmt.Errorf("store: GetLocalItem, no localItem matching key: %x", key)
+		return
+	}
+
+	return localItem, nil
 }
 
 func (db *Database) evictItem(key Key) {
@@ -161,24 +185,24 @@ func (db *Database) itemHandler() {
 
 // Start as Goroutine.
 // Function is responsible for republishing data that should persist on storage network.
-func (db *Database) republisher() {
+func (db *Database) republishHandler() {
 	for {
 		timer := time.NewTimer(time.Second * 1)
 		<-timer.C
 
 		now := time.Now()
-		replicate := now.After(db.getReplicate())
+		replicate := now.After(db.getReplicate()) // This line is a suspect if something doesnt work.
 
-		db.keys.RLock()
-		for key, repubTime := range db.keys.m {
-			if now.After(repubTime) {
-				db.ch <- key
+		db.localItems.RLock()
+		for _, localItem := range db.localItems.m {
+			if now.After(localItem.repubTime) {
+				db.ch <- localItem
 			} else if replicate {
 				// Replication event, replicate all stored values to k nodes.
-				db.ch <- key
+				db.ch <- localItem
 			}
 		}
-		db.keys.RUnlock()
+		db.localItems.RUnlock()
 
 		// If a replication event just happened, reset the replication timer.
 		if replicate {

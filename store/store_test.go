@@ -88,16 +88,17 @@ func TestStoredKeysAdd(t *testing.T) {
 	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+	testVal := "q"
 
-	db.AddKey(trueHash)
+	db.AddLocalItem(trueHash, testVal)
 
-	storedTestKey, err := db.GetRepubTime(trueHash)
+	storedTestKey, err := db.GetLocalItem(trueHash)
 
 	if err != nil {
 		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
 	}
 
-	if storedTestKey.IsZero() {
+	if storedTestKey.repubTime.IsZero() {
 		t.Errorf("Key in DB has no time associated.")
 	}
 }
@@ -164,19 +165,20 @@ func TestGetRepubTime(t *testing.T) {
 
 	fakeHash := [32]byte{17, 69, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+	testVal := "q"
 
-	db.AddKey(trueHash)
+	db.AddLocalItem(trueHash, testVal)
 
-	storedTestKey, err := db.GetRepubTime(trueHash)
+	storedTestKey, err := db.GetLocalItem(trueHash)
 	if err != nil {
 		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
 	}
 
-	if storedTestKey.IsZero() {
+	if storedTestKey.repubTime.IsZero() {
 		t.Errorf("Key in DB has no time associated.")
 	}
 
-	_, err = db.GetRepubTime(fakeHash)
+	_, err = db.GetLocalItem(fakeHash)
 	if err == nil {
 		t.Errorf("Found entry in key DB for value that was never inserted.")
 	}
@@ -205,36 +207,44 @@ func TestItemHandler(t *testing.T) {
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}
-	/*
 
-		db = NewDatabase(time.Second * 86400, time.Second * 3600, time.Second * 0)
+}
 
-		err = db.AddItem(testVal, testNodeID)
-		if err != nil {
-			t.Errorf("some error in AddItem that is not yet defined")
-		}
+func TestItemHandlerRepub(t *testing.T) {
 
-		// After 2 seconds, check if the item  has been removed.
-		timer = time.NewTimer(time.Second * 3)
-		<-timer.C
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
+	testVal := "q"
 
-		_, err = db.GetItem(trueHash)
-		if err == nil {
-			t.Errorf("Item is still in DB after 2 seconds, handler not working.")
-		}
-	*/
+	var testNodeID NodeID
+	copy(testNodeID[:], "w")
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	err := db.AddItem(testVal, testNodeID)
+	if err != nil {
+		t.Errorf("some error in AddItem that is not yet defined")
+	}
+
+	// After 2 seconds, check if the item  has been removed.
+	timer := time.NewTimer(time.Second * 3)
+	<-timer.C
+
+	_, err = db.GetItem(trueHash)
+	if err == nil {
+		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
+	}
 }
 
 func TestRepublisher(t *testing.T) {
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+	testVal := "q"
 
-	db.AddKey(trueHash)
+	db.AddLocalItem(trueHash, testVal)
 
-	republishedKey := <-db.ch
-	if republishedKey != trueHash {
-		t.Errorf("Key did not get republished.")
+	republishedItem := <-db.ch
+	if republishedItem.value != testVal {
+		t.Errorf("LocalItem did not get republished.")
 	}
 }
 
@@ -242,11 +252,12 @@ func TestReplication(t *testing.T) {
 	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+	testVal := "q"
 
-	db.AddKey(trueHash)
+	db.AddLocalItem(trueHash, testVal)
 
-	replicatedKey := <-db.ch
-	if replicatedKey != trueHash {
+	replicatedItem := <-db.ch
+	if replicatedItem.value != testVal {
 		t.Errorf("Key did not get replicated")
 	}
 }
