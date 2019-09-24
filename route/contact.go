@@ -24,6 +24,7 @@ type Candidates struct {
 	contacts contactMap
 }
 
+// NewContact creates a contact.
 func NewContact(target, id node.ID, address net.UDPAddr) Contact {
 	return Contact{
 		NodeID:   id,
