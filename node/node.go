@@ -21,7 +21,6 @@ func init() {
 	rng = rand.Read
 }
 
-// NewID returns a cryptocraphically secure random ID.
 func NewID() (id ID) {
 	buf := make([]byte, IDBytesLength)
 
@@ -34,7 +33,6 @@ func NewID() (id ID) {
 	return id
 }
 
-// IDFromString takes a hexadecimal string and converts it into an ID.
 func IDFromString(str string) (id ID, err error) {
 	i, err := hex.DecodeString(str)
 	if err != nil {

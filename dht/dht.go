@@ -17,8 +17,8 @@ const α = 3 // Degree of parallelism.
 type Key node.ID // TODO(optmzr): use store.Key instead.
 
 type DHT struct {
-	rt *route.Table
-	nw Network
+	rt      *route.Table
+	network Network
 }
 
 // TODO(optmzr): Move to network.
@@ -49,7 +49,7 @@ func (k Key) String() string {
 	return hex.EncodeToString(k[:])
 }
 
-func New(me route.Contact, others []route.Contact, nw Network) (dht *DHT, err error) {
+func New(me route.Contact, others []route.Contact, network Network) (dht *DHT, err error) {
 	dht = new(DHT)
 	dht.rt, err = route.NewTable(me, others)
 	if err != nil {
@@ -57,7 +57,7 @@ func New(me route.Contact, others []route.Contact, nw Network) (dht *DHT, err er
 		return
 	}
 
-	dht.nw = nw
+	dht.network = network
 
 	return
 }
@@ -82,25 +82,8 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	return
 }
 
-type QueryResult struct {
-	From    route.Contact
-	Closest []route.Contact
-	Value   string
-}
-
-type Query interface {
-	Call(nw Network, address *net.UDPAddr) (ch chan *QueryResult, err error)
-	Result(result *QueryResult)
-}
-
-type QueryFindNode struct{}
-
-func (q *QueryFindNode) Call(nw Network, address *net.UDPAddr) (ch chan *QueryResult, err error) {
-	return nw.FindNodes(address)
-}
-
-func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
-	nw := dht.nw
+func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
+	network := dht.network
 	rt := dht.rt
 
 	// The first α contacts selected are used to create a *shortlist* for the
@@ -125,7 +108,7 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 	for {
 		// Holds a slice of channels that are awaiting a response from the
 		// network.
-		await := [](chan *QueryResult){}
+		await := [](chan *NodeListResult){}
 
 		for i, contact := range contacts {
 			if i >= α && !rest {
@@ -135,7 +118,7 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 				continue // Ignore already contacted contacts.
 			}
 
-			ch, err := query.Call(target, contact.Address)
+			ch, err := network.FindNodes(target, contact.Address)
 			if err != nil {
 				sl.Remove(contact)
 			} else {
@@ -147,11 +130,11 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 			}
 		}
 
-		results := make(chan *QueryResult)
+		results := make(chan *NodeListResult)
 		for _, ch := range await {
 			// TODO(optmzr): Should this handle timeouts, or the network
 			// package?
-			go func(ch chan *QueryResult) {
+			go func(ch chan *NodeListResult) {
 				// Redirect all responses to the results channel.
 				r := <-ch
 				results <- r
@@ -171,9 +154,6 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 
 				// Add the responding node's closest contacts.
 				sl.Add(result.Closest...)
-
-				// Call query result handler.
-				query.Result(result)
 			} else {
 				// Network call timed out. Remove the callee from the shortlist.
 				sl.Remove(result.From)
