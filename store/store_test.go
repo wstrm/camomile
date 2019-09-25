@@ -3,11 +3,6 @@ package store
 import "testing"
 import "time"
 
-//import "strconv"
-//import "fmt"
-//import "golang.org/x/crypto/blake2b"
-//import "encoding/hex"
-
 func TestItemsAdd(t *testing.T) {
 	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
@@ -16,10 +11,7 @@ func TestItemsAdd(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := db.AddItem(testVal, testNodeID)
-	if err != nil {
-		t.Errorf("some error in AddItem that is not yet defined")
-	}
+	db.AddItem(testVal, testNodeID)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
@@ -43,7 +35,6 @@ func TestItemsAdd(t *testing.T) {
 }
 
 func BenchmarkAddItem(b *testing.B) {
-
 	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	testVal := []string{
@@ -76,11 +67,7 @@ func BenchmarkAddItem(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := db.AddItem(testVal[i%len(testVal)], testNodeID)
-
-		if err != nil {
-			b.Errorf("some error in AddItem that is not yet defined")
-		}
+		db.AddItem(testVal[i%len(testVal)], testNodeID)
 	}
 }
 
@@ -93,7 +80,6 @@ func TestStoredKeysAdd(t *testing.T) {
 	db.AddLocalItem(trueHash, testVal)
 
 	storedTestKey, err := db.GetLocalItem(trueHash)
-
 	if err != nil {
 		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
 	}
@@ -113,13 +99,10 @@ func TestEvictItem(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := db.AddItem(testVal, testNodeID)
-	if err != nil {
-		t.Errorf("some error in AddItem that is not yet defined")
-	}
+	db.AddItem(testVal, testNodeID)
 
 	// GetItem returns error if item is not found, this assures that something is inserted before we remove it.
-	_, err = db.GetItem(trueHash)
+	_, err := db.GetItem(trueHash)
 	if err != nil {
 		t.Errorf("Item is not in the DB")
 	}
@@ -144,12 +127,9 @@ func TestGetItem(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := db.AddItem(testVal, testNodeID)
-	if err != nil {
-		t.Errorf("Some error in AddItem that is not yet defined")
-	}
+	db.AddItem(testVal, testNodeID)
 
-	_, err = db.GetItem(fakeHash)
+	_, err := db.GetItem(fakeHash)
 	if err == nil {
 		t.Errorf("Found item that was never inserted.")
 	}
@@ -192,10 +172,7 @@ func TestItemHandler(t *testing.T) {
 	var testNodeID NodeID
 	copy(testNodeID[:], "w")
 
-	err := db.AddItem(testVal, testNodeID)
-	if err != nil {
-		t.Errorf("some error in AddItem that is not yet defined")
-	}
+	db.AddItem(testVal, testNodeID)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
@@ -203,15 +180,13 @@ func TestItemHandler(t *testing.T) {
 	timer := time.NewTimer(time.Second * 3)
 	<-timer.C
 
-	_, err = db.GetItem(trueHash)
+	_, err := db.GetItem(trueHash)
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}
-
 }
 
 func TestItemHandlerRepub(t *testing.T) {
-
 	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
 	testVal := "q"
 
@@ -219,16 +194,13 @@ func TestItemHandlerRepub(t *testing.T) {
 	copy(testNodeID[:], "w")
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	err := db.AddItem(testVal, testNodeID)
-	if err != nil {
-		t.Errorf("some error in AddItem that is not yet defined")
-	}
+	db.AddItem(testVal, testNodeID)
 
 	// After 2 seconds, check if the item  has been removed.
 	timer := time.NewTimer(time.Second * 3)
 	<-timer.C
 
-	_, err = db.GetItem(trueHash)
+	_, err := db.GetItem(trueHash)
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}

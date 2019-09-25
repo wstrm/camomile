@@ -98,7 +98,7 @@ func truncate(s string) string {
 }
 
 // AddItem adds an value to the remoteItems database that a node in the kademlia network has sent to this node. 
-func (db *Database) AddItem(value string, origPub node.ID) error {
+func (db *Database) AddItem(value string, origPub node.ID) {
 	t := time.Now()
 	expire := t.Add(db.tExpire)
 	republish := t.Add(db.tRepublish)
@@ -115,8 +115,6 @@ func (db *Database) AddItem(value string, origPub node.ID) error {
 	db.remoteItems.Lock()
 	db.remoteItems.m[key] = newItem
 	db.remoteItems.Unlock()
-
-	return nil
 }
 
 // AddLocalItem adds an value to the local item database that this node has requested to be stored on the kademlia network.
