@@ -43,7 +43,7 @@ func init() {
 
 // FindNodes mocks a FindNodes call by returning a NodeListResult with some
 // random contacts as closest.
-func (net *udpNetwork) FindNodes(target node.ID, address *net.UDPAddr) (chan *network.FindNodesResult, error) {
+func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan *network.FindNodesResult, error) {
 	ch := make(chan *network.FindNodesResult)
 	go func() {
 		var id node.ID
@@ -77,24 +77,24 @@ func (net *udpNetwork) FindNodes(target node.ID, address *net.UDPAddr) (chan *ne
 
 		// Send fake FindNodesResult.
 		ch <- &network.FindNodesResult{
-			From:    route.Contact{NodeID: id, Address: *address},
+			From:    route.Contact{NodeID: id, Address: address},
 			Closest: closest,
 		}
 	}()
 	return ch, nil
 }
 
-func (net *udpNetwork) Ping(addr *net.UDPAddr) (chan *network.PingResult, error) { return nil, nil }
-func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr *net.UDPAddr) error {
+func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, error) { return nil, nil }
+func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
-func (net *udpNetwork) FindValue(key store.Key, addr *net.UDPAddr) (chan *network.FindValueResult, error) {
+func (net *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan *network.FindValueResult, error) {
 	return nil, nil
 }
-func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Contact, sessionID network.SessionID, addr *net.UDPAddr) error {
+func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Contact, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
-func (net *udpNetwork) Store(key store.Key, value string, addr *net.UDPAddr) error {
+func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error {
 	return nil
 }
 

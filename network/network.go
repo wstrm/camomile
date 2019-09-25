@@ -48,10 +48,10 @@ type FindValueRequest struct {
 }
 
 type Network interface {
-	Ping(addr *net.UDPAddr) (chan *PingResult, error)
-	Pong(challenge []byte, sessionID SessionID, addr *net.UDPAddr) error
-	FindNodes(target node.ID, addr *net.UDPAddr) (chan *FindNodesResult, error)
-	Store(key store.Key, value string, addr *net.UDPAddr) error
-	FindValue(key store.Key, addr *net.UDPAddr) (chan *FindValueResult, error)
-	SendValue(key store.Key, value string, closets []route.Contact, sessionID SessionID, addr *net.UDPAddr) error
+	Ping(addr net.UDPAddr) (chan *PingResult, error)
+	Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error
+	FindNodes(target node.ID, addr net.UDPAddr) (chan *FindNodesResult, error)
+	Store(key store.Key, value string, addr net.UDPAddr) error
+	FindValue(key store.Key, addr net.UDPAddr) (chan *FindValueResult, error)
+	SendValue(key store.Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error
 }

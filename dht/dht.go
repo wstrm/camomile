@@ -88,7 +88,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 				continue // Ignore already contacted contacts.
 			}
 
-			ch, err := nw.FindNodes(target, &contact.Address)
+			ch, err := nw.FindNodes(target, contact.Address)
 			if err != nil {
 				sl.Remove(contact)
 			} else {
@@ -160,7 +160,7 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 
 	var stored []route.Contact
 	for _, contact := range contacts {
-		if e := dht.nw.Store(hash, value, &contact.Address); e != nil {
+		if e := dht.nw.Store(hash, value, contact.Address); e != nil {
 			log.Printf("Failed to store at %s (%s): %v",
 				contact.NodeID.String(), contact.Address.String(), e)
 		} else {
