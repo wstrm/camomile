@@ -25,16 +25,16 @@ jobs:
             go generate ./...
             go build ./cmd/...
       - run:
-          name: "Lint"
-          command: |
-            GO111MODULE=off go get gopkg.in/golangci/golangci-lint.v1/cmd/golangci-lint
-            golangci-lint run
-      - run:
           name: "Vet"
           command: go vet ./...
       - run:
           name: "Test"
           command: go test -v -coverprofile=c.out -race ./...
+      - run:
+          name: "Lint"
+          command: |
+            GO111MODULE=off go get gopkg.in/golangci/golangci-lint.v1/cmd/golangci-lint
+            golangci-lint run
 
       - codecov/upload:
           file: "./c.out"
