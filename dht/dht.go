@@ -2,7 +2,6 @@ package dht
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -23,14 +22,9 @@ type DHT struct {
 
 // TODO(optmzr): Move to network.
 type Network interface {
-	FindNodes(target node.ID, address net.UDPAddr) (chan *NodeListResult, error)
+	FindNodes(target node.ID, address net.UDPAddr) (chan *NetworkFindNodesResult, error)
+	FindValue(key Key, addr *net.UDPAddr) (chan *NetworkFindValueResult, error)
 	Store(value string, address net.UDPAddr) error
-}
-
-// TODO(optmzr): Move to network.
-type NodeListResult struct {
-	From    route.Contact
-	Closest []route.Contact
 }
 
 // TODO(optmzr): Move to store.
@@ -82,24 +76,8 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	return
 }
 
-type QueryResult struct {
-	From    route.Contact
-	Closest []route.Contact
-	Value   string
-}
-
-type Query interface {
-	Call(nw Network, address *net.UDPAddr) (ch chan *QueryResult, err error)
-	Result(result *QueryResult)
-}
-
-type QueryFindNode struct{}
-
-func (q *QueryFindNode) Call(nw Network, address *net.UDPAddr) (ch chan *QueryResult, err error) {
-	return nw.FindNodes(address)
-}
-
-func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
+func (dht *DHT) walk(q query) ([]route.Contact, error) {
+	target := q.Target()
 	nw := dht.nw
 	rt := dht.rt
 
@@ -116,6 +94,9 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 	// already been queried.
 	rest := false
 
+	// If a query result handler returns a done as true, the walk should stop.
+	done := false
+
 	// Contacts holds a sorted (slice) copy of the shortlist.
 	contacts := sl.SortedContacts()
 
@@ -125,7 +106,7 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 	for {
 		// Holds a slice of channels that are awaiting a response from the
 		// network.
-		await := [](chan *QueryResult){}
+		await := [](chan *NetworkResult){}
 
 		for i, contact := range contacts {
 			if i >= α && !rest {
@@ -135,7 +116,7 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 				continue // Ignore already contacted contacts.
 			}
 
-			ch, err := query.Call(target, contact.Address)
+			ch, err := q.Call(nw, contact.Address)
 			if err != nil {
 				sl.Remove(contact)
 			} else {
@@ -147,11 +128,11 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 			}
 		}
 
-		results := make(chan *QueryResult)
+		results := make(chan *NetworkResult)
 		for _, ch := range await {
 			// TODO(optmzr): Should this handle timeouts, or the network
 			// package?
-			go func(ch chan *QueryResult) {
+			go func(ch chan *NetworkResult) {
 				// Redirect all responses to the results channel.
 				r := <-ch
 				results <- r
@@ -172,8 +153,8 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 				// Add the responding node's closest contacts.
 				sl.Add(result.Closest...)
 
-				// Call query result handler.
-				query.Result(result)
+				// Call query update handler.
+				done = q.Update(result)
 			} else {
 				// Network call timed out. Remove the callee from the shortlist.
 				sl.Remove(result.From)
@@ -182,7 +163,12 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 
 		contacts = sl.SortedContacts()
 		first := contacts[0]
-		if closest.NodeID.Equal(first.NodeID) {
+
+		if done {
+			// Query update handler marked walk as done.
+			return contacts, nil
+
+		} else if closest.NodeID.Equal(first.NodeID) {
 			// Unchanged closest node from last run, re-run but check all the
 			// nodes in the shortlist (and not only the α closest).
 			if !rest {
@@ -200,17 +186,24 @@ func (dht *DHT) walk(query Query, target node.ID) ([]route.Contact, error) {
 	}
 }
 
+func (dht *DHT) iterativeFindNodes(target node.ID) (contacts []route.Contact, err error) {
+	contacts, err = dht.walk(&queryFindNodes{target: target})
+	return
+}
+
 func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
 	hash = blake2b.Sum256([]byte(value))
 
-	contacts, err := dht.iterativeFindNodes(node.ID(hash))
+	contacts, err := dht.walk(&queryFindNodes{
+		target: node.ID(hash),
+	})
 	if err != nil {
 		return
 	}
 
 	var stored []route.Contact
 	for _, contact := range contacts {
-		if e := dht.network.Store(value, contact.Address); e != nil {
+		if e := dht.nw.Store(value, contact.Address); e != nil {
 			log.Printf("Failed to store at %s (%s): %v",
 				contact.NodeID.String(), contact.Address.String(), e)
 		} else {
@@ -226,7 +219,13 @@ func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
 }
 
 func (dht *DHT) iterativeFindValue(hash Key) (value string, err error) {
-	return "", errors.New("Not implemented")
+	q := &queryFindValue{hash: hash}
+	_, err = dht.walk(q)
+	if err != nil {
+		return
+	}
+	value = q.value
+	return
 }
 
 func logStoredAt(hash Key, contacts []route.Contact) {
