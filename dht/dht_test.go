@@ -8,8 +8,10 @@ import (
 	"net"
 	"testing"
 
+	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
+	"github.com/optmzr/d7024e-dht/store"
 )
 
 // udpNetwork is a mock that fulfills the network.Network interface.
@@ -41,8 +43,8 @@ func init() {
 
 // FindNodes mocks a FindNodes call by returning a NodeListResult with some
 // random contacts as closest.
-func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan *NodeListResult, error) {
-	ch := make(chan *NodeListResult)
+func (net *udpNetwork) FindNodes(target node.ID, address *net.UDPAddr) (chan *network.FindNodesResult, error) {
+	ch := make(chan *network.FindNodesResult)
 	go func() {
 		var id node.ID
 		found := false
@@ -73,17 +75,26 @@ func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan *Nod
 			others[(i+2)%l],
 		}
 
-		// Send fake NodeList.
-		ch <- &NodeListResult{
-			From:    route.Contact{NodeID: id, Address: address},
+		// Send fake FindNodesResult.
+		ch <- &network.FindNodesResult{
+			From:    route.Contact{NodeID: id, Address: *address},
 			Closest: closest,
 		}
 	}()
 	return ch, nil
 }
 
-// Store mocks a Store by immediately returning.
-func (net *udpNetwork) Store(_ string, address net.UDPAddr) error {
+func (net *udpNetwork) Ping(addr *net.UDPAddr) (chan *network.PingResult, error) { return nil, nil }
+func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr *net.UDPAddr) error {
+	return nil
+}
+func (net *udpNetwork) FindValue(key store.Key, addr *net.UDPAddr) (chan *network.FindValueResult, error) {
+	return nil, nil
+}
+func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Contact, sessionID network.SessionID, addr *net.UDPAddr) error {
+	return nil
+}
+func (net *udpNetwork) Store(key store.Key, value string, addr *net.UDPAddr) error {
 	return nil
 }
 
@@ -110,7 +121,7 @@ func TestPut(t *testing.T) {
 		t.Errorf("unexpected error: %w", err)
 	}
 
-	expHash := Key{
+	expHash := store.Key{
 		189, 224, 233, 246, 233, 211, 250, 189, 91, 246, 132, 158, 23, 159, 10,
 		238, 72, 86, 48, 246, 213, 193, 196, 57, 133, 23, 204, 21, 67, 251, 147,
 		134,

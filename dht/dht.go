@@ -1,55 +1,25 @@
 package dht
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
-	"net"
 
+	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
+	"github.com/optmzr/d7024e-dht/store"
 	"golang.org/x/crypto/blake2b"
 )
 
 const α = 3 // Degree of parallelism.
 
-type Key node.ID // TODO(optmzr): use store.Key instead.
-
 type DHT struct {
-	rt      *route.Table
-	network Network
+	rt *route.Table
+	nw network.Network
 }
 
-// TODO(optmzr): Move to network.
-type Network interface {
-	FindNodes(target node.ID, address net.UDPAddr) (chan *NodeListResult, error)
-	Store(value string, address net.UDPAddr) error
-}
-
-// TODO(optmzr): Move to network.
-type NodeListResult struct {
-	From    route.Contact
-	Closest []route.Contact
-}
-
-// TODO(optmzr): Move to store.
-func KeyFromString(str string) (key Key, err error) {
-	h, err := hex.DecodeString(str)
-	if err != nil {
-		err = fmt.Errorf("cannot decode hex string as key: %w", err)
-		return
-	}
-
-	copy(key[:], h)
-	return
-}
-
-func (k Key) String() string {
-	return hex.EncodeToString(k[:])
-}
-
-func New(me route.Contact, others []route.Contact, network Network) (dht *DHT, err error) {
+func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT, err error) {
 	dht = new(DHT)
 	dht.rt, err = route.NewTable(me, others)
 	if err != nil {
@@ -57,19 +27,19 @@ func New(me route.Contact, others []route.Contact, network Network) (dht *DHT, e
 		return
 	}
 
-	dht.network = network
+	dht.nw = nw
 
 	return
 }
 
 // Get retrieves the value for a specified key from the network.
-func (dht *DHT) Get(hash Key) (value string, err error) {
+func (dht *DHT) Get(hash store.Key) (value string, err error) {
 	value, err = dht.iterativeFindValue(hash)
 	return
 }
 
 // Put stores the provided value in the network and returns a key.
-func (dht *DHT) Put(value string) (hash Key, err error) {
+func (dht *DHT) Put(value string) (hash store.Key, err error) {
 	hash, err = dht.iterativeStore(value)
 	return
 }
@@ -83,7 +53,7 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 }
 
 func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
-	network := dht.network
+	nw := dht.nw
 	rt := dht.rt
 
 	// The first α contacts selected are used to create a *shortlist* for the
@@ -108,7 +78,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 	for {
 		// Holds a slice of channels that are awaiting a response from the
 		// network.
-		await := [](chan *NodeListResult){}
+		await := [](chan *network.FindNodesResult){}
 
 		for i, contact := range contacts {
 			if i >= α && !rest {
@@ -118,7 +88,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 				continue // Ignore already contacted contacts.
 			}
 
-			ch, err := network.FindNodes(target, contact.Address)
+			ch, err := nw.FindNodes(target, &contact.Address)
 			if err != nil {
 				sl.Remove(contact)
 			} else {
@@ -130,11 +100,11 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 			}
 		}
 
-		results := make(chan *NodeListResult)
+		results := make(chan *network.FindNodesResult)
 		for _, ch := range await {
 			// TODO(optmzr): Should this handle timeouts, or the network
 			// package?
-			go func(ch chan *NodeListResult) {
+			go func(ch chan *network.FindNodesResult) {
 				// Redirect all responses to the results channel.
 				r := <-ch
 				results <- r
@@ -180,7 +150,7 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 	}
 }
 
-func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
+func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 	hash = blake2b.Sum256([]byte(value))
 
 	contacts, err := dht.iterativeFindNodes(node.ID(hash))
@@ -190,7 +160,7 @@ func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
 
 	var stored []route.Contact
 	for _, contact := range contacts {
-		if e := dht.network.Store(value, contact.Address); e != nil {
+		if e := dht.nw.Store(hash, value, &contact.Address); e != nil {
 			log.Printf("Failed to store at %s (%s): %v",
 				contact.NodeID.String(), contact.Address.String(), e)
 		} else {
@@ -205,11 +175,11 @@ func (dht *DHT) iterativeStore(value string) (hash Key, err error) {
 	return
 }
 
-func (dht *DHT) iterativeFindValue(hash Key) (value string, err error) {
+func (dht *DHT) iterativeFindValue(hash store.Key) (value string, err error) {
 	return "", errors.New("Not implemented")
 }
 
-func logStoredAt(hash Key, contacts []route.Contact) {
+func logStoredAt(hash store.Key, contacts []route.Contact) {
 	log.Printf("Stored value with hash %v at %d nodes:\n",
 		hash.String(), len(contacts))
 	logContacts(contacts)
