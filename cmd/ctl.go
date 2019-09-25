@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/optmzr/d7024e-dht/dht"
 	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/store"
 )
 
 type API struct {
@@ -18,7 +19,7 @@ type Put struct {
 }
 
 type Get struct {
-	Key dht.Key // TODO: Change to store.Key.
+	Key store.Key
 }
 
 type Exit struct {
@@ -31,7 +32,7 @@ func (a *API) Ping(ping Ping, reply *bool) error {
 	//TODO
 }
 
-func (a *API) Put(put Put, reply *dht.Key) (err error) { // TODO: Change to store.key.
+func (a *API) Put(put Put, reply *store.Key) (err error) {
 	*reply, err = a.dht.Put(put.Val)
 	return
 }

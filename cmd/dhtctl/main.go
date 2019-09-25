@@ -7,8 +7,8 @@ import (
 	"net/rpc"
 
 	"github.com/optmzr/d7024e-dht/cmd"
-	"github.com/optmzr/d7024e-dht/dht"
 	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/store"
 )
 
 func put(c *rpc.Client, val string) {
@@ -29,7 +29,7 @@ func put(c *rpc.Client, val string) {
 	}
 }
 
-func get(c *rpc.Client, key dht.Key) {
+func get(c *rpc.Client, key store.Key) {
 	get := cmd.Get{
 		Key: key,
 	}
@@ -101,7 +101,7 @@ func main() {
 		put(client, *putFlag)
 	}
 	if "" != *getFlag {
-		key, err := dht.KeyFromString(*getFlag)
+		key, err := store.KeyFromString(*getFlag)
 		if err != nil {
 			log.Fatalln(err)
 		}
