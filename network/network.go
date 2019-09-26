@@ -24,12 +24,12 @@ type Key node.ID
 type SessionID [node.IDBytesLength]byte
 
 type Network interface {
-	Ping(addr *net.UDPAddr) (chan *PingResult, error)
-	Pong(challenge []byte, sessionID SessionID, addr *net.UDPAddr) error
-	FindNodes(target node.ID, addr *net.UDPAddr) (chan *FindNodesResult, error)
-	Store(key Key, value string, addr *net.UDPAddr) error
-	FindValue(key Key, addr *net.UDPAddr) (chan *FindValueResult, error)
-	SendValue(key Key, value string, closets []route.Contact, sessionID SessionID, addr *net.UDPAddr) error
+	Ping(addr net.UDPAddr) (chan *PingResult, error)
+	Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error
+	FindNodes(target node.ID, addr net.UDPAddr) (chan *FindNodesResult, error)
+	Store(key Key, value string, addr net.UDPAddr) error
+	FindValue(key Key, addr net.UDPAddr) (chan *FindValueResult, error)
+	SendValue(key Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error
 }
 
 type udpNetwork struct {
@@ -89,7 +89,7 @@ func NewUDPNetwork(id node.ID) (Network, chan *FindNodesRequest, chan *FindValue
 	return n, n.fnr, n.fvr, n.pr
 }
 
-func (u *udpNetwork) Ping(addr *net.UDPAddr) (chan *PingResult, error) {
+func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, error) {
 	id := generateID()
 
 	payload := &packet.Ping{
@@ -101,7 +101,7 @@ func (u *udpNetwork) Ping(addr *net.UDPAddr) (chan *PingResult, error) {
 		Payload:              &packet.Packet_Ping{Ping: payload},
 	}
 
-	err := send(addr, *p)
+	err := send(&addr, *p)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (u *udpNetwork) Ping(addr *net.UDPAddr) (chan *PingResult, error) {
 	return results, nil
 }
 
-func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr *net.UDPAddr) error {
+func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error {
 	payload := &packet.Pong{
 		Challenge:            challenge,
 	}
@@ -122,10 +122,10 @@ func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr *net.UDPAd
 		Payload:              &packet.Packet_Pong{Pong: payload},
 	}
 
-	return send(addr, *p)
+	return send(&addr, *p)
 }
 
-func (u *udpNetwork) FindNodes(target node.ID, addr *net.UDPAddr) (chan *FindNodesResult, error) {
+func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan *FindNodesResult, error) {
 	id := generateID()
 
 	payload := &packet.FindNode{
@@ -137,7 +137,7 @@ func (u *udpNetwork) FindNodes(target node.ID, addr *net.UDPAddr) (chan *FindNod
 		Payload:              &packet.Packet_FindNode{FindNode: payload},
 	}
 
-	err := send(addr, *p)
+	err := send(&addr, *p)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (u *udpNetwork) FindNodes(target node.ID, addr *net.UDPAddr) (chan *FindNod
 	return results, nil
 }
 
-func (u *udpNetwork) Store(key Key, value string, addr *net.UDPAddr) error {
+func (u *udpNetwork) Store(key Key, value string, addr net.UDPAddr) error {
 	id := generateID()
 
 	payload := &packet.Store{
@@ -161,10 +161,10 @@ func (u *udpNetwork) Store(key Key, value string, addr *net.UDPAddr) error {
 		Payload:              &packet.Packet_Store{Store: payload},
 	}
 
-	return send(addr, *p)
+	return send(&addr, *p)
 }
 
-func (u *udpNetwork) FindValue(key Key, addr *net.UDPAddr) (chan *FindValueResult, error) {
+func (u *udpNetwork) FindValue(key Key, addr net.UDPAddr) (chan *FindValueResult, error) {
 	id := generateID()
 
 	payload := &packet.FindValue{
@@ -176,7 +176,7 @@ func (u *udpNetwork) FindValue(key Key, addr *net.UDPAddr) (chan *FindValueResul
 		Payload:              &packet.Packet_FindValue{FindValue: payload},
 	}
 
-	err := send(addr, *p)
+	err := send(&addr, *p)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (u *udpNetwork) FindValue(key Key, addr *net.UDPAddr) (chan *FindValueResul
 	return results, nil
 }
 
-func (u *udpNetwork) SendValue(key Key, value string, closets []route.Contact, sessionID SessionID, addr *net.UDPAddr) error {
+func (u *udpNetwork) SendValue(key Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error {
 	closestList :=  make([]route.Contact, 5)
 	for _, contact := range closest  {
 		closestList = append(closest, route.Contact{
@@ -211,7 +211,7 @@ func (u *udpNetwork) SendValue(key Key, value string, closets []route.Contact, s
 		Payload:              &packet.Packet_Value{Value: payload},
 	}
 
-	err := send(addr, *p)
+	err := send(&addr, *p)
 	if err != nil {
 		return err
 	}
@@ -238,11 +238,11 @@ func (u *udpNetwork) listen() {
 			log.Fatalf("Error when reading from UDP from address %v: %s", addr.String(), err)
 		}
 		b := data[:n]
-		go u.handlePacket(b, addr)
+		go u.handlePacket(b, *addr)
 	}
 }
 
-func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
+func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 	p := &packet.Packet{}
 	err := proto.Unmarshal(b, p)
 	if err != nil {
@@ -280,7 +280,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
 		ch <- &FindValueResult{
 			From:  route.Contact{
 				NodeID:  senderID,
-				Address: *addr,
+				Address: addr,
 			},
 			SessionID: sessionID,
 			Closest: closest,
@@ -303,7 +303,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
 			sessionID: sessionID,
 			sender:   route.Contact{
 				NodeID:  senderID,
-				Address: *addr,
+				Address: addr,
 			},
 		}
 
@@ -318,7 +318,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
 		u.pr <- &PongRequest{
 			From:      route.Contact{
 				NodeID:  senderID,
-				Address: *addr,
+				Address: addr,
 			},
 			SessionID: sessionID,
 			Challenge: challenge,
@@ -340,7 +340,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
 		ch <- &PingResult{
 			From:      route.Contact{
 				NodeID:  senderID,
-				Address: *addr,
+				Address: addr,
 			},
 			Challenge: p.GetPong().Challenge,
 		}
@@ -355,7 +355,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
 			SessionID: sessionID,
 			sender:    route.Contact{
 				NodeID:  senderID,
-				Address: *addr,
+				Address: addr,
 			},
 		}
 
