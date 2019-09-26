@@ -150,6 +150,11 @@ func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Co
 func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error {
 	return nil
 }
+func (net *udpNetwork) FindNodesRequestCh() chan *network.FindNodesRequest { return nil }
+func (net *udpNetwork) FindValueRequestCh() chan *network.FindValueRequest { return nil }
+func (net *udpNetwork) PongRequestCh() chan *network.PongRequest           { return nil }
+func (net *udpNetwork) ReadyCh() chan struct{}                             { return nil }
+func (net *udpNetwork) Listen() error                                      { return nil }
 
 func newDHT(t *testing.T) *DHT {
 	d, err := New(me, others[:1], new(udpNetwork))

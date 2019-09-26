@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"log"
 	"net"
 	"testing"
 
@@ -17,9 +18,22 @@ var n Network
 
 func init() {
 	addr, _ = net.ResolveUDPAddr("udp", UdpPort)
-	nodeID := node.NewID()
+	me := route.Contact{
+		NodeID:  node.NewID(),
+		Address: *addr,
+	}
 
-	n, _, _, _ = NewUDPNetwork(nodeID)
+	var err error
+	n, err = NewUDPNetwork(me)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	go func(n Network) {
+		n.Listen()
+	}(n)
+
+	<-n.ReadyCh()
 }
 
 func nextFakeID(a []byte) randRead {
@@ -38,7 +52,7 @@ func TestFindValue_value(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Responde to a finvalue request with a value
+	// Respond to a findvalue request with a value
 	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{}, *addr)
 	if err != nil {
 		t.Error(err)
@@ -61,7 +75,7 @@ func TestFindValue_contacts(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Responde to a finvalue request with a list of contacts
+	// Respond to a findvalue request with a list of contacts
 	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{}, *addr)
 	if err != nil {
 		t.Error(err)
