@@ -1,3 +1,6 @@
 *.pb.go
 *.out
+*.swp
+*.pdf
 *.test
+.*.un*
