@@ -81,7 +81,7 @@ func TestMe(t *testing.T) {
 	boot := Contact{NodeID: randomID()}
 
 	rt, _ := NewTable(me, []Contact{boot})
-	rtMe := rt.me()
+	rtMe := rt.me
 
 	if !me.NodeID.Equal(rtMe.NodeID) {
 		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
@@ -123,7 +123,7 @@ func TestAdd(t *testing.T) {
 
 		rt.Add(c1)
 
-		c2 := rt[j].Front().Value.(Contact)
+		c2 := rt.buckets[j].Front().Value.(Contact)
 
 		if !c1.NodeID.Equal(c2.NodeID) {
 			t.Errorf("inequal node ID, %v != %v", c1.NodeID, c2.NodeID)
@@ -145,7 +145,7 @@ func TestDuplicateContact(t *testing.T) {
 	rt.Add(c1)
 	rt.Add(c1)
 
-	bucketLen := rt[d.BucketIndex()].Len()
+	bucketLen := rt.buckets[d.BucketIndex()].Len()
 	expLen := 1
 	if bucketLen != expLen {
 		t.Errorf("unexpected bucket length, %d != %d", bucketLen, expLen)
@@ -168,7 +168,7 @@ func TestNClosest(t *testing.T) {
 
 	closest := rt.NClosest(me.NodeID, 500)
 	n := closest.Len()
-	if n != 32 { // 1 bootstrap node and 1 local node.
+	if n != 31 { // 1 bootstrap node.
 		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 32)
 	}
 

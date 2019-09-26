@@ -13,7 +13,10 @@ const bucketSize = 20
 type bucket struct{ *list.List }
 
 // Table implements a routing table according to the Kademlia specification.
-type Table [node.IDLength]*bucket
+type Table struct {
+	buckets [node.IDLength]*bucket
+	me      Contact
+}
 
 // Distance represents the distance between two node IDs.
 type Distance [node.IDBytesLength]byte
@@ -44,12 +47,6 @@ func distance(a, b node.ID) (d Distance) {
 		d[i] = a[i] ^ b[i]
 	}
 	return
-}
-
-// me returns the contact in the last bucket (the local node).
-func (rt *Table) me() Contact {
-	lastBucket := rt[bucketSize-1]
-	return lastBucket.Front().Value.(Contact)
 }
 
 // add adds the contact to the bucket.
@@ -83,29 +80,29 @@ func (b *bucket) contacts(id node.ID) (c Contacts) {
 
 // Add finds the correct bucket to add the contact to and inserts the contact.
 func (rt *Table) Add(c Contact) {
-	me := rt.me()
+	me := rt.me
 
 	d := distance(me.NodeID, c.NodeID)
-	b := rt[d.BucketIndex()]
+	b := rt.buckets[d.BucketIndex()]
 	b.add(c)
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
 func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
-	me := rt.me()
+	me := rt.me
 	d := distance(me.NodeID, target)
 	index := d.BucketIndex()
 
-	b := rt[index]
+	b := rt.buckets[index]
 	sl = NewCandidates(b.contacts(me.NodeID)...)
 
-	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {
+	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt.buckets)); i++ {
 		if index-i >= 0 {
-			b = rt[index-i]
+			b = rt.buckets[index-i]
 			sl.Add(b.contacts(me.NodeID)...)
 		}
-		if index+i < cap(rt) {
-			b = rt[index+i]
+		if index+i < cap(rt.buckets) {
+			b = rt.buckets[index+i]
 			sl.Add(b.contacts(me.NodeID)...)
 		}
 	}
@@ -128,14 +125,12 @@ func NewTable(me Contact, others []Contact) (rt *Table, err error) {
 	}
 
 	rt = new(Table)
+	rt.me = me
 
 	// Create all the buckets.
-	for i := range rt {
-		rt[i] = &bucket{list.New()}
+	for i := range rt.buckets {
+		rt.buckets[i] = &bucket{list.New()}
 	}
-
-	// Add local node to last bucket.
-	rt[bucketSize-1].PushFront(me)
 
 	// Add bootstrapping contacts.
 	for _, other := range others {
