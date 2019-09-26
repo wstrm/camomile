@@ -1,14 +1,18 @@
 package store
 
-import "testing"
-import "time"
+import (
+	"testing"
+	"time"
+
+	"github.com/optmzr/d7024e-dht/node"
+)
 
 func TestItemsAdd(t *testing.T) {
 	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
 	testVal := "q"
 
-	var testNodeID NodeID
+	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
 	db.AddItem(testVal, testNodeID)
@@ -62,7 +66,7 @@ func BenchmarkAddItem(b *testing.B) {
 		"freedom from envy and the passion for honor",
 	}
 
-	var testNodeID NodeID
+	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
 	b.ResetTimer()
@@ -96,7 +100,7 @@ func TestEvictItem(t *testing.T) {
 
 	testVal := "q"
 
-	var testNodeID NodeID
+	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
 	db.AddItem(testVal, testNodeID)
@@ -124,7 +128,7 @@ func TestGetItem(t *testing.T) {
 
 	testVal := "q"
 
-	var testNodeID NodeID
+	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
 	db.AddItem(testVal, testNodeID)
@@ -169,7 +173,7 @@ func TestItemHandler(t *testing.T) {
 
 	testVal := "q"
 
-	var testNodeID NodeID
+	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
 	db.AddItem(testVal, testNodeID)
@@ -190,7 +194,7 @@ func TestItemHandlerRepub(t *testing.T) {
 	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0)
 	testVal := "q"
 
-	var testNodeID NodeID
+	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 

@@ -1,9 +1,13 @@
 package store
 
-import "time"
-import "golang.org/x/crypto/blake2b"
-import "sync"
-import "fmt"
+import (
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/optmzr/d7024e-dht/node"
+	"golang.org/x/crypto/blake2b"
+)
 
 // Key should be a checksum made with blake2b256 hash algorithm, in binary and at a length of 32 bytes.
 type Key node.ID
@@ -45,13 +49,13 @@ type replicate struct {
 // Time constants dictate the behaviour of the database according to the kademlia algorithm.
 // The channel enables the database to signal DHT when to send republish events.
 type Database struct {
-	remoteItems      remoteItems
-	localItems localItems
-	ch         chan localItem
-	replicate  replicate
-	tExpire    time.Duration
-	tReplicate time.Duration
-	tRepublish time.Duration
+	remoteItems remoteItems
+	localItems  localItems
+	ch          chan localItem
+	replicate   replicate
+	tExpire     time.Duration
+	tReplicate  time.Duration
+	tRepublish  time.Duration
 }
 
 // NewDatabase instantiates a new database object with the given time constants, returns a Database pointer and a channel.
@@ -91,13 +95,13 @@ func (db *Database) getReplicate() time.Time {
 
 // truncate truncates supplied string to a maximum of a 1000 characters. Returns a string.
 func truncate(s string) string {
-    if len(s) > 1000 {
-        return s[:1000]
-    }
-    return s
+	if len(s) > 1000 {
+		return s[:1000]
+	}
+	return s
 }
 
-// AddItem adds an value to the remoteItems database that a node in the kademlia network has sent to this node. 
+// AddItem adds an value to the remoteItems database that a node in the kademlia network has sent to this node.
 func (db *Database) AddItem(value string, origPub node.ID) {
 	t := time.Now()
 	expire := t.Add(db.tExpire)
