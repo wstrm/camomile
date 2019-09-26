@@ -3,11 +3,13 @@ package network
 import (
 	"bytes"
 	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/route"
 	"net"
 	"testing"
 )
 
 const value  = "ABC, du är mina tankar."
+const wrongValue = "CBA, du är i mina tankar"
 
 var addr *net.UDPAddr
 var n Network
@@ -30,10 +32,10 @@ func TestFindValue_value(t *testing.T) {
 	rng = nextFakeID([]byte{})
 
 	// Send a findvalue request to a node att addr
-	ch, err := n.FindValue(Key{}, addr)
+	ch, err := n.FindValue(Key{}, *addr)
 
 	// Responde to a finvalue request with a value
-	err = n.SendValue(Key{}, value, SessionID{}, addr)
+	err = n.SendValue(Key{}, value, []route.Contact{}, SessionID{}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -50,10 +52,10 @@ func TestFindValue_contacts(t *testing.T) {
 	rng = nextFakeID([]byte{})
 
 	// Send a findvalue request to a node att addr
-	ch, err := n.FindValue(Key{}, addr)
+	ch, err := n.FindValue(Key{}, *addr)
 
 	// Responde to a finvalue request with a list of contacts
-	err = n.SendValue(Key{}, "", SessionID{}, addr)
+	err = n.SendValue(Key{}, value, []route.Contact{}, SessionID{}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -66,16 +68,16 @@ func TestFindValue_contacts(t *testing.T) {
 	}
 }
 
-func TestPingPongShow(t *testing.T) {
+func TestPingPongShow_correctChallengeReply(t *testing.T) {
 	rng = nextFakeID([]byte{254})
 
-	challenge := []byte{254}
+	correctChallenge := []byte{254}
 
-	res, err := n.Ping(addr)
+	res, err := n.Ping(*addr)
 	if err != nil {
 		t.Error(err)
 	}
-	err = n.Pong(challenge, SessionID{}, addr)
+	err = n.Pong(correctChallenge, SessionID{}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,10 +85,34 @@ func TestPingPongShow(t *testing.T) {
 	r := <- res
 	rc := r.Challenge
 
-	comp := bytes.Compare(rc, challenge)
+	comp := bytes.Compare(rc, correctChallenge)
 
 	if comp != 0 {
-		t.Errorf("Got: %v Expected: %v", rc, challenge)
+		t.Errorf("Got: %v Expected: %v", rc, correctChallenge)
 	}
 }
 
+func TestPingPongShow_wrongChallengeReply(t *testing.T) {
+	rng = nextFakeID([]byte{254})
+
+	correctChallenge := []byte{254}
+	wrongChallenge := []byte{0}
+
+	res, err := n.Ping(*addr)
+	if err != nil {
+		t.Error(err)
+	}
+	err = n.Pong(wrongChallenge, SessionID{}, *addr)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r := <- res
+	rc := r.Challenge
+
+	comp := bytes.Compare(rc, correctChallenge)
+
+	if comp == 0 {
+		t.Errorf("Got: %v Expected: %v", rc, correctChallenge)
+	}
+}
