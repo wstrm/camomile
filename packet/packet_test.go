@@ -10,7 +10,7 @@ import (
 
 func ExamplePacket() {
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 	}
 
@@ -25,8 +25,8 @@ func ExamplePacket() {
 		fmt.Println(err)
 	}
 
-	if !bytes.Equal([]byte{123}, rr.PacketId) {
-		fmt.Printf("expected '[123]' as PacketId in payload, got '%v'", rr.PacketId)
+	if !bytes.Equal([]byte{123}, rr.SessionId) {
+		fmt.Printf("expected '[123]' as SessionId in payload, got '%v'", rr.SessionId)
 	} else if !bytes.Equal([]byte{100}, rr.SenderId) {
 		fmt.Printf("expected '[100]' as SenderId in payload, got '%v'", rr.SenderId)
 	} else {
@@ -42,7 +42,7 @@ func ExamplePing() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_Ping{payload},
 	}
@@ -74,7 +74,7 @@ func ExamplePong() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_Pong{payload},
 	}
@@ -107,7 +107,7 @@ func ExampleStore() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_Store{payload},
 	}
@@ -140,7 +140,7 @@ func ExampleValue() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_Value{payload},
 	}
@@ -172,7 +172,7 @@ func ExampleFindValue() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_FindValue{payload},
 	}
@@ -204,7 +204,7 @@ func ExampleFindNode() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_FindNode{payload},
 	}
@@ -248,7 +248,7 @@ func ExampleNodeList() {
 	}
 
 	r := &packet.Packet{
-		PacketId: []byte{123},
+		SessionId: []byte{123},
 		SenderId: []byte{100},
 		Payload:  &packet.Packet_NodeList{payload},
 	}

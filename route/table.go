@@ -96,9 +96,7 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	d := distance(me.NodeID, target)
 	index := d.BucketIndex()
 
-	var b *bucket
-
-	b = rt[index]
+	b := rt[index]
 	sl = NewCandidates(b.contacts(me.NodeID)...)
 
 	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {

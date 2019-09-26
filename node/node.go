@@ -21,6 +21,7 @@ func init() {
 	rng = rand.Read
 }
 
+// NewID creates a new cryptographically unique ID.
 func NewID() (id ID) {
 	buf := make([]byte, IDBytesLength)
 
@@ -33,6 +34,7 @@ func NewID() (id ID) {
 	return id
 }
 
+// IDFromString parses a hexadecimal representation of an ID into an ID.
 func IDFromString(str string) (id ID, err error) {
 	i, err := hex.DecodeString(str)
 	if err != nil {
@@ -49,14 +51,20 @@ func IDFromString(str string) (id ID, err error) {
 	return
 }
 
-// bytes returns the bytes slice without a fixed size for a node ID.
-func (n ID) bytes() []byte {
+// IDFromBytes reads the bytes in a slice into an ID.
+func IDFromBytes(b []byte) (id ID) {
+	copy(id[:], b)
+	return
+}
+
+// Bytes returns the bytes slice without a fixed size for a node ID.
+func (n ID) Bytes() []byte {
 	return n[:]
 }
 
 // Equal compares the node ID with another.
 func (a ID) Equal(b ID) bool {
-	return bytes.Equal(a.bytes(), b.bytes())
+	return bytes.Equal(a.Bytes(), b.Bytes())
 }
 
 // String returns the hexadecimal representation of an ID as a string.
