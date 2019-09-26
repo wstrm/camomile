@@ -282,7 +282,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr *net.UDPAddr) {
 				NodeID:  senderID,
 				Address: *addr,
 			},
-			PacketID: sessionID,
+			SessionID: sessionID,
 			Closest: closest,
 			Key:   key,
 			Value: p.GetValue().Value,
