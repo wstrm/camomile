@@ -187,23 +187,32 @@ func (u *udpNetwork) FindValue(key Key, addr net.UDPAddr) (chan *FindValueResult
 	return results, nil
 }
 
-func (u *udpNetwork) SendValue(key Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error {
-	closestList :=  make([]route.Contact, 5)
-	for _, contact := range closest  {
-		closestList = append(closest, route.Contact{
-			NodeID:  node.IDFromBytes(contact.NodeId),
-			Address: net.UDPAddr{
-				IP:   contact.Ip,
-				Port: int(contact.Port),
-				Zone: "",
-			},
-		})
+func (u *udpNetwork) SendValue(key Key, value string, closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error {
+
+	var nodes []*packet.NodeInfo
+	var contacts []route.Contact
+
+	for _, c := range closest {
+			contacts = append(contacts, c)
+	}
+
+	for _, c := range contacts {
+		p := &packet.NodeInfo{
+			NodeId:               c.NodeID[:],
+			Ip:                   c.Address.IP,
+			Port:                 uint32(c.Address.Port),
+		}
+		nodes = append(nodes, p)
+	}
+
+	internalPayload := &packet.NodeList{
+		Nodes:                nodes,
 	}
 
 	payload := &packet.Value{
 		Key:                  key[:],
 		Value:                value,
-		NodeList: closets,
+		NodeList: internalPayload,
 	}
 	p := &packet.Packet{
 		SessionId:            sessionID[:],
