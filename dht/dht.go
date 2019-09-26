@@ -55,6 +55,16 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	return
 }
 
+type awaitChannel struct {
+	ch     chan network.Result
+	callee route.Contact
+}
+
+type awaitResult struct {
+	result network.Result
+	callee route.Contact
+}
+
 func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 	nw := dht.nw
 	rt := dht.rt
@@ -82,7 +92,7 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 	for {
 		// Holds a slice of channels that are awaiting a response from the
 		// network.
-		await := [](chan network.Result){}
+		await := []awaitChannel{}
 
 		for i, contact := range contacts {
 			if i >= α && !rest {
@@ -100,27 +110,30 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 				sent[contact.NodeID] = true
 
 				// Add to await channel queue.
-				await = append(await, ch)
+				await = append(await, awaitChannel{ch: ch, callee: contact})
 			}
 		}
 
-		results := make(chan network.Result)
-		for _, ch := range await {
-			go func(ch chan network.Result) {
+		results := make(chan awaitResult)
+		for _, ac := range await {
+			go func(ac awaitChannel) {
 				// Redirect all responses to the results channel.
-				r := <-ch
-				results <- r
-			}(ch)
+				r := <-ac.ch
+				results <- awaitResult{result: r, callee: ac.callee}
+			}(ac)
 		}
 
 		// Iterate through every result from the responding nodes and add their
 		// closest contacts to the shortlist.
 		for i := 0; i < len(await); i++ {
-			result := <-results
+			ac := <-results
+			result := ac.result
+			callee := ac.callee
+
 			if result != nil {
 				// Add node so it is moved to the top of its bucket in the
 				// routing table.
-				rt.Add(result.From())
+				rt.Add(callee)
 
 				// Add the responding node's closest contacts.
 				sl.Add(result.Closest()...)
@@ -132,7 +145,7 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 				}
 			} else {
 				// Network call timed out. Remove the callee from the shortlist.
-				sl.Remove(result.From())
+				sl.Remove(callee)
 			}
 		}
 

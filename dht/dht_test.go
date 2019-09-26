@@ -22,10 +22,6 @@ type findNodesResult struct {
 	closest []route.Contact
 }
 
-func (r *findNodesResult) From() route.Contact {
-	return r.from
-}
-
 func (r *findNodesResult) Closest() []route.Contact {
 	return r.closest
 }
@@ -39,10 +35,6 @@ type findValueResult struct {
 	from    route.Contact
 	closest []route.Contact
 	value   string
-}
-
-func (r *findValueResult) From() route.Contact {
-	return r.from
 }
 
 func (r *findValueResult) Closest() []route.Contact {
@@ -162,7 +154,7 @@ func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) erro
 func newDHT(t *testing.T) *DHT {
 	d, err := New(me, others[:1], new(udpNetwork))
 	if err != nil {
-		t.Fatalf("unexpected error: %w", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	return d
 }

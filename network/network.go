@@ -13,39 +13,28 @@ const Size256 = 256 / 8
 type SessionID [Size256]byte
 
 type PingResult struct {
-	From      route.Contact
 	Challenge []byte
 }
 
 type PongRequest struct {
-	From      route.Contact
 	SessionID SessionID
 	Challenge []byte
 }
 
 type FindNodesResult struct {
-	from    route.Contact
 	closest []route.Contact
 }
 
 type FindValueResult struct {
-	from      route.Contact
 	SessionID SessionID
 	closest   []route.Contact
 	Key       store.Key
 	value     string
 }
 
-type FindNodesRequest struct {
-	SessionID SessionID
-	sender    route.Contact
-}
+type FindNodesRequest struct{}
 
-type FindValueRequest struct {
-	key       store.Key
-	sessionID SessionID
-	sender    route.Contact
-}
+type FindValueRequest struct{}
 
 type Network interface {
 	Ping(addr net.UDPAddr) (chan *PingResult, error)
@@ -57,13 +46,8 @@ type Network interface {
 }
 
 type Result interface {
-	From() route.Contact
 	Closest() []route.Contact
 	Value() string
-}
-
-func (r *FindNodesResult) From() route.Contact {
-	return r.from
 }
 
 func (r *FindNodesResult) Closest() []route.Contact {
@@ -72,10 +56,6 @@ func (r *FindNodesResult) Closest() []route.Contact {
 
 func (r *FindNodesResult) Value() string {
 	return ""
-}
-
-func (r *FindValueResult) From() route.Contact {
-	return r.from
 }
 
 func (r *FindValueResult) Closest() []route.Contact {
