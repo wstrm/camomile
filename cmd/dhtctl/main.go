@@ -6,13 +6,13 @@ import (
 	"log"
 	"net/rpc"
 
-	"github.com/optmzr/d7024e-dht/cmd"
+	"github.com/optmzr/d7024e-dht/ctl"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/store"
 )
 
 func put(c *rpc.Client, val string) {
-	put := cmd.Put{
+	put := ctl.Put{
 		Val: val,
 	}
 	var reply bool
@@ -30,7 +30,7 @@ func put(c *rpc.Client, val string) {
 }
 
 func get(c *rpc.Client, key store.Key) {
-	get := cmd.Get{
+	get := ctl.Get{
 		Key: key,
 	}
 	var reply bool
@@ -48,7 +48,7 @@ func get(c *rpc.Client, key store.Key) {
 }
 
 func ping(c *rpc.Client, id node.ID) {
-	ping := cmd.Ping{NodeID: id}
+	ping := ctl.Ping{NodeID: id}
 	var reply bool
 
 	// The RPC call
@@ -64,11 +64,10 @@ func ping(c *rpc.Client, id node.ID) {
 }
 
 func exit(c *rpc.Client, id node.ID) {
-	exit := cmd.Exit{NodeID: id}
 	var reply bool
 
 	// The RPC call
-	err := c.Call("API.Exit", exit, &reply)
+	err := c.Call("API.Exit", nil, &reply)
 	if err != nil {
 		log.Fatal("Ping error:", err)
 	}

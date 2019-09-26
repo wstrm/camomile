@@ -1,22 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 
-	"github.com/optmzr/d7024e-dht/cmd"
+	"github.com/optmzr/d7024e-dht/ctl"
+	"github.com/optmzr/d7024e-dht/dht"
+	"github.com/optmzr/d7024e-dht/network"
+	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/route"
 )
 
-func handlePacket(conn *net.UDPConn) {
-	// TODO: implement what happens with received messages.
-	// go-routines go here and connect to channel for message proccessing?
-}
-
-func rpcServer() {
-	api := new(cmd.API)
+func rpcServe(dht *dht.DHT) {
+	api := ctl.NewAPI(dht)
 
 	err := rpc.Register(api)
 	if err != nil {
@@ -36,35 +34,38 @@ func rpcServer() {
 }
 
 func main() {
-	go rpcServer()
-
-	// Listen to all addresses on port 8118.
-	udpAddress, err := net.ResolveUDPAddr("udp", ":8118")
+	address, err := net.ResolveUDPAddr("udp", network.UdpPort)
 	if err != nil {
-		log.Fatalf("Unable to resolve IP and Port, %v", err)
+		log.Fatalln(err)
 	}
 
-	conn, err := net.ListenUDP("udp", udpAddress)
-	if err != nil {
-		log.Fatalf("Unable to listen at %v, %v", udpAddress.String(), err)
-		return
+	// TODO
+	others := []route.Contact{
+		route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		},
 	}
 
-	defer conn.Close()
+	me := route.Contact{
+		NodeID:  node.NewID(),
+		Address: *address,
+	}
 
-	for {
-		fmt.Println("Listening for UDP packets on port 8118")
-		data := make([]byte, 512)
+	nw, err := network.NewUDPNetwork(me)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-		n, addr, err := conn.ReadFromUDP(data)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		s := string(data[:n])
+	dht, err := dht.New(me, others, nw)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-		// Print the request data.
-		fmt.Println("Received a message from: ", addr)
-		fmt.Println(s)
-		go handlePacket(conn)
+	go rpcServe(dht)
+
+	err = nw.Listen()
+	if err != nil {
+		log.Fatalln(err)
 	}
 }

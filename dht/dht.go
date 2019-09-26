@@ -28,6 +28,14 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 
 	dht.nw = nw
 
+	go func(dht *DHT, me route.Contact) {
+		<-dht.nw.ReadyCh()
+		err := dht.Join(me)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}(dht, me)
+
 	return
 }
 

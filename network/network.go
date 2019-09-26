@@ -27,13 +27,14 @@ func init() {
 }
 
 type udpNetwork struct {
-	me  node.ID
-	fnt *findNodesTable
-	fvt *findValueTable
-	pt  *pingTable
-	fnr chan *FindNodesRequest
-	fvr chan *FindValueRequest
-	pr  chan *PongRequest
+	me    route.Contact
+	fnt   *findNodesTable
+	fvt   *findValueTable
+	pt    *pingTable
+	fnr   chan *FindNodesRequest
+	fvr   chan *FindValueRequest
+	pr    chan *PongRequest
+	ready chan struct{}
 }
 
 type PingResult struct {
@@ -65,6 +66,11 @@ type Network interface {
 	Store(key store.Key, value string, addr net.UDPAddr) error
 	FindValue(key store.Key, addr net.UDPAddr) (chan Result, error)
 	SendValue(key store.Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error
+	FindNodesRequestCh() chan *FindNodesRequest
+	FindValueRequestCh() chan *FindValueRequest
+	PongRequestCh() chan *PongRequest
+	ReadyCh() chan struct{}
+	Listen() error
 }
 
 type Result interface {
@@ -99,17 +105,21 @@ type FindValueRequest struct {
 	sender    route.Contact
 }
 
-func NewUDPNetwork(id node.ID) (Network, chan *FindNodesRequest, chan *FindValueRequest, chan *PongRequest) {
-	n := &udpNetwork{me: id, fvt: newFindValueTable(), fnt: newFindNodesTable(), pt: newPingTable()}
+func NewUDPNetwork(me route.Contact) (Network, error) {
+	n := &udpNetwork{me: me, fvt: newFindValueTable(), fnt: newFindNodesTable(), pt: newPingTable()}
 
 	n.fnr = make(chan *FindNodesRequest)
 	n.fvr = make(chan *FindValueRequest)
 	n.pr = make(chan *PongRequest)
+	n.ready = make(chan struct{})
 
-	go n.listen()
-
-	return n, n.fnr, n.fvr, n.pr
+	return n, nil
 }
+
+func (u *udpNetwork) FindNodesRequestCh() chan *FindNodesRequest { return u.fnr }
+func (u *udpNetwork) FindValueRequestCh() chan *FindValueRequest { return u.fvr }
+func (u *udpNetwork) PongRequestCh() chan *PongRequest           { return u.pr }
+func (u *udpNetwork) ReadyCh() chan struct{}                     { return u.ready }
 
 func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, error) {
 	id := generateID()
@@ -119,7 +129,7 @@ func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, error) {
 	}
 	p := &packet.Packet{
 		SessionId: id[:],
-		SenderId:  u.me.Bytes(),
+		SenderId:  u.me.NodeID.Bytes(),
 		Payload:   &packet.Packet_Ping{Ping: payload},
 	}
 
@@ -140,7 +150,7 @@ func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr net.UDPAdd
 	}
 	p := &packet.Packet{
 		SessionId: sessionID[:],
-		SenderId:  u.me.Bytes(),
+		SenderId:  u.me.NodeID.Bytes(),
 		Payload:   &packet.Packet_Pong{Pong: payload},
 	}
 
@@ -155,7 +165,7 @@ func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan Result, e
 	}
 	p := &packet.Packet{
 		SessionId: id[:],
-		SenderId:  u.me.Bytes(),
+		SenderId:  u.me.NodeID.Bytes(),
 		Payload:   &packet.Packet_FindNode{FindNode: payload},
 	}
 
@@ -179,7 +189,7 @@ func (u *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error 
 	}
 	p := &packet.Packet{
 		SessionId: id[:],
-		SenderId:  u.me.Bytes(),
+		SenderId:  u.me.NodeID.Bytes(),
 		Payload:   &packet.Packet_Store{Store: payload},
 	}
 
@@ -194,7 +204,7 @@ func (u *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan Result, er
 	}
 	p := &packet.Packet{
 		SessionId: id[:],
-		SenderId:  u.me.Bytes(),
+		SenderId:  u.me.NodeID.Bytes(),
 		Payload:   &packet.Packet_FindValue{FindValue: payload},
 	}
 
@@ -236,7 +246,7 @@ func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Cont
 	}
 	p := &packet.Packet{
 		SessionId: sessionID[:],
-		SenderId:  u.me.Bytes(),
+		SenderId:  u.me.NodeID.Bytes(),
 		Payload:   &packet.Packet_Value{Value: payload},
 	}
 
@@ -248,18 +258,18 @@ func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Cont
 	return nil
 }
 
-func (u *udpNetwork) listen() {
-	udpAddr, err := net.ResolveUDPAddr("udp", UdpPort)
+func (u *udpNetwork) Listen() error {
+	log.Printf("Listening for UDP packets on port %v", UdpPort)
+
+	conn, err := net.ListenUDP("udp", &u.me.Address)
 	if err != nil {
-		panic(err)
-	}
-	conn, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		panic(err)
+		return err
 	}
 	defer conn.Close()
 
-	log.Printf("Listening for UDP packets on port %v", UdpPort)
+	// Notify everyone that we're ready.
+	u.ready <- struct{}{}
+
 	for {
 		data := make([]byte, 1500)
 		n, addr, err := conn.ReadFromUDP(data)
