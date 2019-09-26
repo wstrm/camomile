@@ -9,7 +9,6 @@ import (
 )
 
 const value  = "ABC, du är mina tankar."
-//const wrongValue = "CBA, du är i mina tankar"
 
 var addr *net.UDPAddr
 var n Network
