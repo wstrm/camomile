@@ -186,7 +186,11 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 }
 
 func (dht *DHT) iterativeFindValue(hash store.Key) (value string, err error) {
-	return "", nil
+	call := NewFindValueCall(hash)
+	if _, err = dht.walk(call); err == nil {
+		value = call.value
+	}
+	return
 }
 
 func logStoredAt(hash store.Key, contacts []route.Contact) {

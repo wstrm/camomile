@@ -33,7 +33,7 @@ type FindValueResult struct {
 	SessionID SessionID
 	closest   []route.Contact
 	Key       store.Key
-	Value     string
+	value     string
 }
 
 type FindNodesRequest struct {
@@ -59,6 +59,7 @@ type Network interface {
 type Result interface {
 	From() route.Contact
 	Closest() []route.Contact
+	Value() string
 }
 
 func (r *FindNodesResult) From() route.Contact {
@@ -69,10 +70,18 @@ func (r *FindNodesResult) Closest() []route.Contact {
 	return r.closest
 }
 
+func (r *FindNodesResult) Value() string {
+	return ""
+}
+
 func (r *FindValueResult) From() route.Contact {
 	return r.from
 }
 
 func (r *FindValueResult) Closest() []route.Contact {
 	return r.closest
+}
+
+func (r *FindValueResult) Value() string {
+	return r.value
 }

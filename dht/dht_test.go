@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/rand" // Insecure on purpose due to testing.
 	"net"
+	"sync/atomic"
 	"testing"
 
 	"github.com/optmzr/d7024e-dht/network"
@@ -29,14 +30,34 @@ func (r *findNodesResult) Closest() []route.Contact {
 	return r.closest
 }
 
+func (r *findNodesResult) Value() string {
+	return ""
+}
+
+// findValueResult is a mock that fulfills the network.Result interface.
+type findValueResult struct {
+	from    route.Contact
+	closest []route.Contact
+	value   string
+}
+
+func (r *findValueResult) From() route.Contact {
+	return r.from
+}
+
+func (r *findValueResult) Closest() []route.Contact {
+	return r.closest
+}
+
+func (r *findValueResult) Value() string {
+	return r.value
+}
+
 // Accessed by multiple goroutines, must not be changed except by init().
 var others []route.Contact
 var me route.Contact
 
 func init() {
-	//log.SetFlags(0)
-	//log.SetOutput(ioutil.Discard)
-
 	id := node.NewID()
 	me = route.NewContact(id, id, net.UDPAddr{
 		IP:   net.IP{10, 10, 10, 254},
@@ -53,39 +74,45 @@ func init() {
 	}
 }
 
+func randomFindNodesResult(address net.UDPAddr) (node.ID, []route.Contact) {
+	var id node.ID
+	found := false
+
+	if address.IP.Equal(me.Address.IP) {
+		id = me.NodeID
+		found = true
+	} else {
+		// Find this nodes ID by the address in the others slice.
+		for _, contact := range others {
+			if address.IP.Equal(contact.Address.IP) {
+				id = contact.NodeID
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		panic("address used doesn't exist in the test contacts")
+	}
+
+	// Pick some random contacts as closest.
+	i := rand.Int()
+	l := len(others)
+	closest := []route.Contact{
+		others[i%l],
+		others[(i+1)%l],
+		others[(i+2)%l],
+	}
+
+	return id, closest
+}
+
 // FindNodes mocks a FindNodes call by returning a NodeListResult with some
 // random contacts as closest.
 func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan network.Result, error) {
 	ch := make(chan network.Result)
 	go func() {
-		var id node.ID
-		found := false
-
-		if address.IP.Equal(me.Address.IP) {
-			id = me.NodeID
-			found = true
-		} else {
-			// Find this nodes ID by the address in the others slice.
-			for _, contact := range others {
-				if address.IP.Equal(contact.Address.IP) {
-					id = contact.NodeID
-					found = true
-				}
-			}
-		}
-
-		if !found {
-			panic("address used doesn't exist in the test contacts")
-		}
-
-		// Pick some random contacts as closest.
-		i := rand.Int()
-		l := len(others)
-		closest := []route.Contact{
-			others[i%l],
-			others[(i+1)%l],
-			others[(i+2)%l],
-		}
+		id, closest := randomFindNodesResult(address)
 
 		// Send fake FindNodesResult.
 		ch <- &findNodesResult{
@@ -96,12 +123,34 @@ func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan netw
 	return ch, nil
 }
 
+var findValueCalls uint32 = 0
+
+func (net *udpNetwork) FindValue(key store.Key, address net.UDPAddr) (chan network.Result, error) {
+	calls := atomic.AddUint32(&findValueCalls, 1)
+
+	ch := make(chan network.Result)
+	go func() {
+		id, closest := randomFindNodesResult(address)
+
+		if calls < 4 { // Call #4 should return a value.
+			ch <- &findValueResult{
+				from:    route.Contact{NodeID: id, Address: address},
+				closest: closest,
+			}
+		} else {
+			ch <- &findValueResult{
+				from:    route.Contact{NodeID: id, Address: address},
+				closest: closest,
+				value:   "ABC, du är mina tankar",
+			}
+		}
+	}()
+	return ch, nil
+}
+
 func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, error) { return nil, nil }
 func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
-}
-func (net *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan network.Result, error) {
-	return nil, nil
 }
 func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Contact, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
@@ -110,23 +159,25 @@ func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) erro
 	return nil
 }
 
-func TestJoin(t *testing.T) {
+func newDHT(t *testing.T) *DHT {
 	d, err := New(me, others[:1], new(udpNetwork))
 	if err != nil {
-		t.Errorf("unexpected error: %w", err)
+		t.Fatalf("unexpected error: %w", err)
 	}
+	return d
+}
 
-	err = d.Join(me)
+func TestJoin(t *testing.T) {
+	d := newDHT(t)
+
+	err := d.Join(me)
 	if err != nil {
 		t.Errorf("unexpected error: %w", err)
 	}
 }
 
 func TestPut(t *testing.T) {
-	d, err := New(me, others[:1], new(udpNetwork))
-	if err != nil {
-		t.Errorf("unexpected error: %w", err)
-	}
+	d := newDHT(t)
 
 	hash, err := d.Put("ABC, du är mina tankar")
 	if err != nil {
@@ -141,5 +192,25 @@ func TestPut(t *testing.T) {
 
 	if !bytes.Equal(hash[:], expHash[:]) {
 		t.Errorf("unexpected hash, got: %v, exp: %v", hash, expHash)
+	}
+}
+
+func TestGet(t *testing.T) {
+	d := newDHT(t)
+
+	hash := store.Key{
+		189, 224, 233, 246, 233, 211, 250, 189, 91, 246, 132, 158, 23, 159, 10,
+		238, 72, 86, 48, 246, 213, 193, 196, 57, 133, 23, 204, 21, 67, 251, 147,
+		134,
+	}
+
+	value, err := d.Get(hash)
+	if err != nil {
+		t.Errorf("unexpected error: %w", err)
+	}
+
+	expValue := "ABC, du är mina tankar"
+	if value != expValue {
+		t.Errorf("unexpected value, got: %s, exp: %s", value, expValue)
 	}
 }

@@ -47,12 +47,14 @@ func (q *FindValueCall) Do(nw network.Network, address net.UDPAddr) (chan networ
 }
 
 func (q *FindValueCall) Result(result network.Result) (stop bool) {
-	res, ok := result.(*network.FindValueResult)
-	if !ok {
-		stop = false
-	} else {
-		q.value = res.Value
+	// TODO: Value validation could be added here, where the value received is
+	// checked towards the expected hash.
+
+	q.value = result.Value()
+	if q.value != "" {
 		stop = true
+	} else {
+		stop = false
 	}
 
 	return
