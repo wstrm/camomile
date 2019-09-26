@@ -60,7 +60,7 @@ type FindNodesResult struct {
 
 type FindValueResult struct {
 	From     route.Contact
-	PacketID SessionID
+	SessionID SessionID
 	Closest	[]route.Contact
 	Key      Key
 	Value    string
