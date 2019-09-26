@@ -14,11 +14,11 @@ func TestTableNodes(t *testing.T) {
 
 	c := table.Get(id)
 
-	go func () {
+	go func() {
 		ch <- nil
 	}()
 
-	res := <- c
+	res := <-c
 	if res != nil {
 		t.Errorf("Expected: nil Got: %v", res)
 	}
@@ -34,11 +34,11 @@ func TestTableFindValue(t *testing.T) {
 
 	c := table.Get(id)
 
-	go func () {
+	go func() {
 		ch <- nil
 	}()
 
-	res := <- c
+	res := <-c
 	if res != nil {
 		t.Errorf("Expected: nil Got: %v", res)
 	}
@@ -58,7 +58,7 @@ func TestTablePing(t *testing.T) {
 		ch <- nil
 	}()
 
-	res := <- c
+	res := <-c
 	if res != nil {
 		t.Errorf("Expected: nil Got: %v", res)
 	}

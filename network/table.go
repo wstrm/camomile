@@ -22,7 +22,7 @@ func (t *findNodesTable) Put(id SessionID, ch chan *FindNodesResult) {
 	t.items[id] = ch
 }
 
-func (t *findNodesTable) Get(id SessionID) chan *FindNodesResult{
+func (t *findNodesTable) Get(id SessionID) chan *FindNodesResult {
 	t.Lock()
 	defer t.Unlock()
 	return t.items[id]
@@ -41,7 +41,7 @@ type findValueTable struct {
 
 func newFindValueTable() *findValueTable {
 	return &findValueTable{
-		items: make(map[SessionID]chan  *FindValueResult),
+		items: make(map[SessionID]chan *FindValueResult),
 		Mutex: sync.Mutex{},
 	}
 }

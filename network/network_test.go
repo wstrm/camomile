@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const value  = "ABC, du är mina tankar."
+const value = "ABC, du är mina tankar."
 
 var addr *net.UDPAddr
 var n Network
@@ -17,7 +17,7 @@ func init() {
 	addr, _ = net.ResolveUDPAddr("udp", UdpPort)
 	nodeID := node.NewID()
 
-	n, _,_,_ = NewUDPNetwork(nodeID)
+	n, _, _, _ = NewUDPNetwork(nodeID)
 }
 
 func nextFakeID(a []byte) randRead {
@@ -42,7 +42,7 @@ func TestFindValue_value(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := <- ch
+	r := <-ch
 	res := r.Value
 
 	if res != value {
@@ -56,7 +56,7 @@ func TestFindValue_contacts(t *testing.T) {
 	// Send a findvalue request to a node att addr
 	ch, err := n.FindValue(Key{}, *addr)
 	if err != nil {
-		 t.Error(err)
+		t.Error(err)
 	}
 
 	// Responde to a finvalue request with a list of contacts
@@ -65,7 +65,7 @@ func TestFindValue_contacts(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := <- ch
+	r := <-ch
 	res := r.Value
 
 	if res != value {
@@ -87,7 +87,7 @@ func TestPingPongShow_correctChallengeReply(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := <- res
+	r := <-res
 	rc := r.Challenge
 
 	comp := bytes.Compare(rc, correctChallenge)
@@ -112,7 +112,7 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := <- res
+	r := <-res
 	rc := r.Challenge
 
 	comp := bytes.Compare(rc, correctChallenge)
