@@ -29,9 +29,9 @@ type FindNodesResult struct {
 }
 
 type FindValueResult struct {
-	From      route.Contact
+	from      route.Contact
 	SessionID SessionID
-	Closest   []route.Contact
+	closest   []route.Contact
 	Key       store.Key
 	Value     string
 }
@@ -52,7 +52,7 @@ type Network interface {
 	Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error
 	FindNodes(target node.ID, addr net.UDPAddr) (chan Result, error)
 	Store(key store.Key, value string, addr net.UDPAddr) error
-	FindValue(key store.Key, addr net.UDPAddr) (chan *FindValueResult, error)
+	FindValue(key store.Key, addr net.UDPAddr) (chan Result, error)
 	SendValue(key store.Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error
 }
 
@@ -66,5 +66,13 @@ func (r *FindNodesResult) From() route.Contact {
 }
 
 func (r *FindNodesResult) Closest() []route.Contact {
+	return r.closest
+}
+
+func (r *FindValueResult) From() route.Contact {
+	return r.from
+}
+
+func (r *FindValueResult) Closest() []route.Contact {
 	return r.closest
 }

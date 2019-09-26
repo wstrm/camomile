@@ -3,7 +3,6 @@ package dht
 import (
 	"fmt"
 	"log"
-	"net"
 
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
@@ -47,49 +46,13 @@ func (dht *DHT) Put(value string) (hash store.Key, err error) {
 // Join initiates a node lookup of itself to bootstrap the node into the
 // network.
 func (dht *DHT) Join(me route.Contact) (err error) {
-	call := NewFindNodesCall(me.NodeID)
-	contacts, err := dht.walk(call)
+	contacts, err := dht.iterativeFindNodes(me.NodeID)
 	if err != nil {
 		return
 	}
 
 	logAcquaintedWith(contacts)
 	return
-}
-
-type Call interface {
-	Do(nw network.Network, address net.UDPAddr) (ch chan network.Result, err error)
-	Result(result network.Result) (done bool)
-	Target() (target node.ID)
-}
-
-func NewFindNodesCall(target node.ID) *FindNodesCall {
-	return &FindNodesCall{
-		target: target,
-	}
-}
-
-type FindNodesCall struct {
-	target node.ID
-}
-
-func (q *FindNodesCall) Do(nw network.Network, address net.UDPAddr) (chan network.Result, error) {
-	ch, err := nw.FindNodes(q.target, address)
-	return ch, err
-}
-
-func (q *FindNodesCall) Result(result network.Result) (done bool) {
-	res, ok := result.(*network.FindNodesResult)
-	if !ok {
-		fmt.Println("invalid", result)
-		return false
-	}
-	fmt.Println("valid", res)
-	return true
-}
-
-func (q *FindNodesCall) Target() node.ID {
-	return q.target
 }
 
 func (dht *DHT) walk(call Call) ([]route.Contact, error) {
@@ -143,8 +106,6 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 
 		results := make(chan network.Result)
 		for _, ch := range await {
-			// TODO(optmzr): Should this handle timeouts, or the network
-			// package?
 			go func(ch chan network.Result) {
 				// Redirect all responses to the results channel.
 				r := <-ch
@@ -155,8 +116,6 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 		// Iterate through every result from the responding nodes and add their
 		// closest contacts to the shortlist.
 		for i := 0; i < len(await); i++ {
-			// TODO(optmzr): Should this handle timeouts, or the network
-			// package?
 			result := <-results
 			if result != nil {
 				// Add node so it is moved to the top of its bucket in the
@@ -165,6 +124,12 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 
 				// Add the responding node's closest contacts.
 				sl.Add(result.Closest()...)
+
+				// Update callee with intermediate results.
+				stop := call.Result(result)
+				if stop {
+					break // Callee requested that the walk must be stopped.
+				}
 			} else {
 				// Network call timed out. Remove the callee from the shortlist.
 				sl.Remove(result.From())
@@ -191,11 +156,14 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 	}
 }
 
+func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
+	return dht.walk(NewFindNodesCall(target))
+}
+
 func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 	hash = blake2b.Sum256([]byte(value))
 
-	call := NewFindNodesCall(node.ID(hash))
-	contacts, err := dht.walk(call)
+	contacts, err := dht.iterativeFindNodes(node.ID(hash))
 	if err != nil {
 		return
 	}

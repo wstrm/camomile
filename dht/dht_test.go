@@ -100,7 +100,7 @@ func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, error) 
 func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
-func (net *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan *network.FindValueResult, error) {
+func (net *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan network.Result, error) {
 	return nil, nil
 }
 func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Contact, sessionID network.SessionID, addr net.UDPAddr) error {
