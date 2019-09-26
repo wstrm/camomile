@@ -75,6 +75,22 @@ func BenchmarkAddItem(b *testing.B) {
 	}
 }
 
+func TestTruncate(t *testing.T) {
+	tooLongString := "9Tf2YFM1NLOxCVWg3e5lclDBPqEV0yzQGHhc41ZUoWTy9maE5hzPyWBgmwMWhg1yM1hb572ZXdXEGjoQvyNT8exx6fikCiFmJQcPBdCcw9rzlR4BseKtyixbeRhh9NF0AWoltgMVPJdYPSgWHYEUlPAdYFCAvlRs5Vumziu2niuPWzhTfzy9RDAfB1Tqt6mHPu9Cxsq1oSZUxltamshva8N2qoc4Rt5qoOoVxMyRxq21WcJ7xXVTHmd1EzpyJ31bnvoiN8zdtc0zPKQ3ddNkuCnRoJzQ78FqPSsXM6DgpNeMcaGFpPwj65hLa2gga4L8N7POF7rZdJJY8vyKIc8b6fLVlrMBlAHuIrrVzjhYw1tuGr26p1TIiV6jfYHPZkZiF5vQCeuN95uCDuP7uJOQUlo4J19pUw2sNB18mMCA7XFYnH4Ys1esF4ordeWkaJ6jLlS3ZThFsfVAVhRzke70ZQUWsWJD6LPJQjILZoffj3hpxlw7FlOeTqpPeHvAyZXX6MTNv95hbU0dWDa6vaUrO3ICVyTHsAr46CpvQMA8kbnfU6szKe1kTgJHvSmL8N9sqcPzd4eMaBtfGUoMBZgHpx18NeaAmx3sZ8RM1gMLDMCO5R0CeW8EsiLkoal4W1bG2nOECi4sGzX22LWcEU1QeuQbn5uFj8oVA8qmCN1cBQreo5cx0AXT0oSMnnuvelJBavHMU8CUjsawq7mUDuzm0M9dBYnXb2INbctkduN5jzAmo1F4ZqAZBOUH2FIr9A8U7bBShtlynWiV8PXepDMXN22kCZ2MRZ7CDkbV4OdFey6MZvbXx9LHZQ8Q4EjQ4FGjV1S0vbrThMVHRNzrjcwWvvZMCDSjE5Ct5d08nJKQ7vZVSdAihVNCyXFVxQIXr8AeFMk6cJDS4E3fbOo9YKJrRWawxJ2h4Q87dLqszVyAo1yJSQawTtinRdq1pogY578J8iMbegqqgLYABrxxnEVU0J2prsx4kGkpMaQRtgggusjA1I46CUmVSsPU3vGB"
+
+	maxThousandCharString := truncate(tooLongString)
+	if len(maxThousandCharString) > 1000 {
+		t.Errorf("Truncate produces a too long string, more than 1000 chars")
+	}
+
+	tenCharString := "0123456789"
+
+	sameString := truncate(tenCharString)
+	if len(sameString) != len(tenCharString) {
+		t.Errorf("Truncate truncates before 1000 chars")
+	}
+}
+
 func TestStoredKeysAdd(t *testing.T) {
 	db, _ := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
 
