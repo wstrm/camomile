@@ -192,9 +192,7 @@ func (u *udpNetwork) SendValue(key Key, value string, closest []route.Contact, s
 	var nodes []*packet.NodeInfo
 	var contacts []route.Contact
 
-	for _, c := range closest {
-			contacts = append(contacts, c)
-	}
+	contacts = append(contacts, closest...)
 
 	for _, c := range contacts {
 		p := &packet.NodeInfo{

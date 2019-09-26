@@ -9,7 +9,7 @@ import (
 )
 
 const value  = "ABC, du är mina tankar."
-const wrongValue = "CBA, du är i mina tankar"
+//const wrongValue = "CBA, du är i mina tankar"
 
 var addr *net.UDPAddr
 var n Network
@@ -33,6 +33,9 @@ func TestFindValue_value(t *testing.T) {
 
 	// Send a findvalue request to a node att addr
 	ch, err := n.FindValue(Key{}, *addr)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// Responde to a finvalue request with a value
 	err = n.SendValue(Key{}, value, []route.Contact{}, SessionID{}, *addr)
@@ -53,6 +56,9 @@ func TestFindValue_contacts(t *testing.T) {
 
 	// Send a findvalue request to a node att addr
 	ch, err := n.FindValue(Key{}, *addr)
+	if err != nil {
+		 t.Error(err)
+	}
 
 	// Responde to a finvalue request with a list of contacts
 	err = n.SendValue(Key{}, value, []route.Contact{}, SessionID{}, *addr)
