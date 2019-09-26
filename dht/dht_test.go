@@ -2,8 +2,6 @@ package dht
 
 import (
 	"bytes"
-	"io/ioutil"
-	"log"
 	"math/rand" // Insecure on purpose due to testing.
 	"net"
 	"testing"
@@ -17,13 +15,27 @@ import (
 // udpNetwork is a mock that fulfills the network.Network interface.
 type udpNetwork struct{}
 
+// findNodesResult is a mock that fulfills the network.Result interface.
+type findNodesResult struct {
+	from    route.Contact
+	closest []route.Contact
+}
+
+func (r *findNodesResult) From() route.Contact {
+	return r.from
+}
+
+func (r *findNodesResult) Closest() []route.Contact {
+	return r.closest
+}
+
 // Accessed by multiple goroutines, must not be changed except by init().
 var others []route.Contact
 var me route.Contact
 
 func init() {
-	log.SetFlags(0)
-	log.SetOutput(ioutil.Discard)
+	//log.SetFlags(0)
+	//log.SetOutput(ioutil.Discard)
 
 	id := node.NewID()
 	me = route.NewContact(id, id, net.UDPAddr{
@@ -43,8 +55,8 @@ func init() {
 
 // FindNodes mocks a FindNodes call by returning a NodeListResult with some
 // random contacts as closest.
-func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan *network.FindNodesResult, error) {
-	ch := make(chan *network.FindNodesResult)
+func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan network.Result, error) {
+	ch := make(chan network.Result)
 	go func() {
 		var id node.ID
 		found := false
@@ -76,9 +88,9 @@ func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan *net
 		}
 
 		// Send fake FindNodesResult.
-		ch <- &network.FindNodesResult{
-			From:    route.Contact{NodeID: id, Address: address},
-			Closest: closest,
+		ch <- &findNodesResult{
+			from:    route.Contact{NodeID: id, Address: address},
+			closest: closest,
 		}
 	}()
 	return ch, nil

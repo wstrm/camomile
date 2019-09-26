@@ -24,8 +24,8 @@ type PongRequest struct {
 }
 
 type FindNodesResult struct {
-	From    route.Contact
-	Closest []route.Contact
+	from    route.Contact
+	closest []route.Contact
 }
 
 type FindValueResult struct {
@@ -50,8 +50,21 @@ type FindValueRequest struct {
 type Network interface {
 	Ping(addr net.UDPAddr) (chan *PingResult, error)
 	Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error
-	FindNodes(target node.ID, addr net.UDPAddr) (chan *FindNodesResult, error)
+	FindNodes(target node.ID, addr net.UDPAddr) (chan Result, error)
 	Store(key store.Key, value string, addr net.UDPAddr) error
 	FindValue(key store.Key, addr net.UDPAddr) (chan *FindValueResult, error)
 	SendValue(key store.Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error
+}
+
+type Result interface {
+	From() route.Contact
+	Closest() []route.Contact
+}
+
+func (r *FindNodesResult) From() route.Contact {
+	return r.from
+}
+
+func (r *FindNodesResult) Closest() []route.Contact {
+	return r.closest
 }
