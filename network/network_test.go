@@ -30,7 +30,10 @@ func init() {
 	}
 
 	go func(n Network) {
-		n.Listen()
+		err := n.Listen()
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}(n)
 
 	<-n.ReadyCh()
