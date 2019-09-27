@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 )
@@ -57,11 +58,21 @@ func TestIDFromStringInvalidHex(t *testing.T) {
 	}
 }
 
-func TestIDString(t *testing.T) {
+func TestIDFromString(t *testing.T) {
 	str1 := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	id, _ := IDFromString(str1)
 	str2 := id.String()
 	if str2 != str1 {
 		t.Errorf("unexpected string, got: %s, exp: %s", str2, str1)
+	}
+}
+
+func TestIDFromBytes(t *testing.T) {
+	b := []byte{123, 123, 123}
+	exp := [32]byte{123, 123, 123}
+
+	id := IDFromBytes(b)
+	if !bytes.Equal(id[:], exp[:]) {
+		t.Errorf("unexpected id, got:\n\t%v,\nexp:\n\t %v", id[:], exp)
 	}
 }
