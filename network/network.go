@@ -373,7 +373,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		copy(sessionID[:], p.SessionId)
 		copy(senderID[:], p.SenderId)
 
-		for _, contact := range p.GetValue().GetNodeList().GetNodes() {
+		for _, contact := range p.GetNodeList().GetNodes() {
 			closest = append(closest, route.Contact{
 				NodeID: node.IDFromBytes(contact.NodeId),
 				Address: net.UDPAddr{
