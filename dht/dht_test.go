@@ -147,6 +147,9 @@ func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr 
 func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Contact, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
+func (net *udpNetwork) SendNodes(closets []route.Contact, sessionID network.SessionID, addr net.UDPAddr) error {
+	return nil
+}
 func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error {
 	return nil
 }

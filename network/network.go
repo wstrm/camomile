@@ -65,7 +65,8 @@ type Network interface {
 	FindNodes(target node.ID, addr net.UDPAddr) (chan Result, error)
 	Store(key store.Key, value string, addr net.UDPAddr) error
 	FindValue(key store.Key, addr net.UDPAddr) (chan Result, error)
-	SendValue(key store.Key, value string, closets []route.Contact, sessionID SessionID, addr net.UDPAddr) error
+	SendValue(key store.Key, value string, closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error
+	SendNodes(closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error
 	FindNodesRequestCh() chan *FindNodesRequest
 	FindValueRequestCh() chan *FindValueRequest
 	PongRequestCh() chan *PongRequest
@@ -96,13 +97,14 @@ func (r *FindValueResult) Value() string {
 
 type FindNodesRequest struct {
 	SessionID SessionID
-	sender    route.Contact
+	Target    node.ID
+	From      route.Contact
 }
 
 type FindValueRequest struct {
-	key       store.Key
-	sessionID SessionID
-	sender    route.Contact
+	Key       store.Key
+	SessionID SessionID
+	From      route.Contact
 }
 
 func NewUDPNetwork(me route.Contact) (Network, error) {
@@ -128,9 +130,10 @@ func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, error) {
 		Challenge: generateChallenge(),
 	}
 	p := &packet.Packet{
-		SessionId: id[:],
-		SenderId:  u.me.NodeID.Bytes(),
-		Payload:   &packet.Packet_Ping{Ping: payload},
+		SessionId:  id[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_Ping{Ping: payload},
 	}
 
 	err := send(&addr, *p)
@@ -149,9 +152,10 @@ func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr net.UDPAdd
 		Challenge: challenge,
 	}
 	p := &packet.Packet{
-		SessionId: sessionID[:],
-		SenderId:  u.me.NodeID.Bytes(),
-		Payload:   &packet.Packet_Pong{Pong: payload},
+		SessionId:  sessionID[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_Pong{Pong: payload},
 	}
 
 	return send(&addr, *p)
@@ -164,9 +168,10 @@ func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan Result, e
 		NodeId: target[:],
 	}
 	p := &packet.Packet{
-		SessionId: id[:],
-		SenderId:  u.me.NodeID.Bytes(),
-		Payload:   &packet.Packet_FindNode{FindNode: payload},
+		SessionId:  id[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_FindNode{FindNode: payload},
 	}
 
 	err := send(&addr, *p)
@@ -188,9 +193,10 @@ func (u *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error 
 		Value: value,
 	}
 	p := &packet.Packet{
-		SessionId: id[:],
-		SenderId:  u.me.NodeID.Bytes(),
-		Payload:   &packet.Packet_Store{Store: payload},
+		SessionId:  id[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_Store{Store: payload},
 	}
 
 	return send(&addr, *p)
@@ -203,9 +209,10 @@ func (u *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan Result, er
 		Key: key[:],
 	}
 	p := &packet.Packet{
-		SessionId: id[:],
-		SenderId:  u.me.NodeID.Bytes(),
-		Payload:   &packet.Packet_FindValue{FindValue: payload},
+		SessionId:  id[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_FindValue{FindValue: payload},
 	}
 
 	err := send(&addr, *p)
@@ -220,7 +227,6 @@ func (u *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan Result, er
 }
 
 func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error {
-
 	var nodes []*packet.NodeInfo
 	var contacts []route.Contact
 
@@ -245,9 +251,44 @@ func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Cont
 		NodeList: internalPayload,
 	}
 	p := &packet.Packet{
-		SessionId: sessionID[:],
-		SenderId:  u.me.NodeID.Bytes(),
-		Payload:   &packet.Packet_Value{Value: payload},
+		SessionId:  sessionID[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_Value{Value: payload},
+	}
+
+	err := send(&addr, *p)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error {
+	var nodes []*packet.NodeInfo
+	var contacts []route.Contact
+
+	contacts = append(contacts, closest...)
+
+	for _, c := range contacts {
+		p := &packet.NodeInfo{
+			NodeId: c.NodeID[:],
+			Ip:     c.Address.IP,
+			Port:   uint32(c.Address.Port),
+		}
+		nodes = append(nodes, p)
+	}
+
+	payload := &packet.NodeList{
+		Nodes: nodes,
+	}
+
+	p := &packet.Packet{
+		SessionId:  sessionID[:],
+		SenderId:   u.me.NodeID.Bytes(),
+		SenderPort: uint32(u.me.Address.Port),
+		Payload:    &packet.Packet_NodeList{NodeList: payload},
 	}
 
 	err := send(&addr, *p)
@@ -325,20 +366,53 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 
 		u.fvt.Remove(sessionID)
 
+	case *packet.Packet_NodeList:
+		var sessionID SessionID
+		var senderID node.ID
+		var closest []route.Contact
+		copy(sessionID[:], p.SessionId)
+		copy(senderID[:], p.SenderId)
+
+		for _, contact := range p.GetValue().GetNodeList().GetNodes() {
+			closest = append(closest, route.Contact{
+				NodeID: node.IDFromBytes(contact.NodeId),
+				Address: net.UDPAddr{
+					IP:   contact.Ip,
+					Port: int(contact.Port),
+					Zone: "",
+				},
+			})
+		}
+
+		ch := u.fnt.Get(sessionID)
+		if ch == nil {
+			log.Println("Channel not found in table")
+			return
+		}
+
+		ch <- &FindNodesResult{
+			closest: closest,
+		}
+
+		u.fvt.Remove(sessionID)
+
 	case *packet.Packet_FindValue:
 		var key store.Key
 		var senderID node.ID
 		var sessionID SessionID
 		copy(key[:], p.GetFindValue().Key)
-		copy(senderID[:], p.GetSessionId())
+		copy(senderID[:], p.GetSenderId())
 		copy(sessionID[:], p.GetSessionId())
 
 		u.fvr <- &FindValueRequest{
-			key:       key,
-			sessionID: sessionID,
-			sender: route.Contact{
-				NodeID:  senderID,
-				Address: addr,
+			Key:       key,
+			SessionID: sessionID,
+			From: route.Contact{
+				NodeID: senderID,
+				Address: net.UDPAddr{
+					IP:   addr.IP,
+					Port: int(p.GetSenderPort()),
+				},
 			},
 		}
 
@@ -346,14 +420,17 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		var sessionID SessionID
 		var senderID node.ID
 		var challenge []byte
-		copy(senderID[:], p.GetSessionId())
+		copy(senderID[:], p.GetSenderId())
 		copy(sessionID[:], p.GetSessionId())
 		copy(challenge, p.GetPing().GetChallenge())
 
 		u.pr <- &PongRequest{
 			From: route.Contact{
-				NodeID:  senderID,
-				Address: addr,
+				NodeID: senderID,
+				Address: net.UDPAddr{
+					IP:   addr.IP,
+					Port: int(p.GetSenderPort()),
+				},
 			},
 			SessionID: sessionID,
 			Challenge: challenge,
@@ -362,7 +439,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 	case *packet.Packet_Pong:
 		var sessionID SessionID
 		var senderID node.ID
-		copy(senderID[:], p.GetSessionId())
+		copy(senderID[:], p.GetSenderId())
 		copy(sessionID[:], p.GetSessionId())
 
 		ch := u.pt.Get(sessionID)
@@ -373,8 +450,11 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 
 		ch <- &PingResult{
 			From: route.Contact{
-				NodeID:  senderID,
-				Address: addr,
+				NodeID: senderID,
+				Address: net.UDPAddr{
+					IP:   addr.IP,
+					Port: int(p.GetSenderPort()),
+				},
 			},
 			Challenge: p.GetPong().Challenge,
 		}
@@ -382,14 +462,20 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 	case *packet.Packet_FindNode:
 		var sessionID SessionID
 		var senderID node.ID
+		var targetID node.ID
 		copy(sessionID[:], p.GetSessionId())
 		copy(senderID[:], p.GetSenderId())
+		copy(targetID[:], p.GetFindNode().NodeId)
 
 		u.fnr <- &FindNodesRequest{
 			SessionID: sessionID,
-			sender: route.Contact{
-				NodeID:  senderID,
-				Address: addr,
+			Target:    targetID,
+			From: route.Contact{
+				NodeID: senderID,
+				Address: net.UDPAddr{
+					IP:   addr.IP,
+					Port: int(p.GetSenderPort()),
+				},
 			},
 		}
 

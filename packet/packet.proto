@@ -4,14 +4,15 @@ package packet;
 message Packet {
   bytes session_id = 1;
   bytes sender_id = 2;
+  uint32 sender_port = 3;
   oneof payload {
-    Ping ping = 3;
-    Pong pong = 4;
-    Store store = 5;
-    Value value = 6;
-    FindNode find_node = 7;
-    FindValue find_value = 8;
-    NodeList node_list = 9;
+    Ping ping = 4;
+    Pong pong = 5;
+    Store store = 6;
+    Value value = 7;
+    FindNode find_node = 8;
+    FindValue find_value = 9;
+    NodeList node_list = 10;
   }
 }
 

@@ -45,12 +45,22 @@ func main() {
 			NodeID:  node.NewID(),
 			Address: *address,
 		},
+		route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		},
+		route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		},
 	}
 
 	me := route.Contact{
 		NodeID:  node.NewID(),
 		Address: *address,
 	}
+
+	log.Printf("My node ID is: %v", me.NodeID)
 
 	nw, err := network.NewUDPNetwork(me)
 	if err != nil {

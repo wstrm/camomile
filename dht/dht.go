@@ -11,7 +11,8 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-const α = 3 // Degree of parallelism.
+const α = 3  // Degree of parallelism.
+const k = 20 // Bucket size.
 
 type DHT struct {
 	rt *route.Table
@@ -36,7 +37,28 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 		}
 	}(dht, me)
 
+	go dht.findNodesRequestHandler()
+
 	return
+}
+
+func (dht *DHT) findNodesRequestHandler() {
+	for {
+		request := <-dht.nw.FindNodesRequestCh()
+
+		log.Printf("Find node request from: %v", request.From.NodeID)
+
+		// Add node so it is moved to the top of its bucket in the routing table.
+		dht.rt.Add(request.From)
+
+		// Fetch this nodes contacts that are closest to the requested target.
+		closest := dht.rt.NClosest(request.Target, k).SortedContacts()
+
+		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 // Get retrieves the value for a specified key from the network.
