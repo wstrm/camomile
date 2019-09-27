@@ -34,7 +34,7 @@ func NewAPI(dht *dht.DHT) *API {
 func (a *API) Ping(ping Ping, reply *bool) error {
 	*reply = true
 	return nil
-	//TODO
+	// TODO: Coupling with DHT.
 }
 
 func (a *API) Put(put Put, reply *store.Key) (err error) {

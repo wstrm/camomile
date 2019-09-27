@@ -39,7 +39,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// TODO
+	// TODO: Parse flags from command line and populate this slice.
 	others := []route.Contact{
 		route.Contact{
 			NodeID:  node.NewID(),
