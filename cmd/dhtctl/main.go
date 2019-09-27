@@ -1,17 +1,18 @@
 package main
 
 import (
-	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/optmzr/d7024e-dht/cmd"
 	"log"
 	"net/rpc"
+
+	"github.com/optmzr/d7024e-dht/ctl"
+	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/store"
 )
 
 func put(c *rpc.Client, val string) {
-	put := cmd.Put{
-		Id:  nil,
+	put := ctl.Put{
 		Val: val,
 	}
 	var reply bool
@@ -28,9 +29,8 @@ func put(c *rpc.Client, val string) {
 	}
 }
 
-func get(c *rpc.Client, key []byte) {
-	get := cmd.Get{
-		Id:  nil,
+func get(c *rpc.Client, key store.Key) {
+	get := ctl.Get{
 		Key: key,
 	}
 	var reply bool
@@ -47,8 +47,8 @@ func get(c *rpc.Client, key []byte) {
 	}
 }
 
-func ping(c *rpc.Client, id []byte) {
-	ping := cmd.Ping{Id: id}
+func ping(c *rpc.Client, id node.ID) {
+	ping := ctl.Ping{NodeID: id}
 	var reply bool
 
 	// The RPC call
@@ -63,12 +63,11 @@ func ping(c *rpc.Client, id []byte) {
 	}
 }
 
-func exit(c *rpc.Client, id []byte) {
-	exit := cmd.Exit{Id: id}
+func exit(c *rpc.Client, id node.ID) {
 	var reply bool
 
 	// The RPC call
-	err := c.Call("API.Exit", exit, &reply)
+	err := c.Call("API.Exit", nil, &reply)
 	if err != nil {
 		log.Fatal("Ping error:", err)
 	}
@@ -101,21 +100,21 @@ func main() {
 		put(client, *putFlag)
 	}
 	if "" != *getFlag {
-		key, err := hex.DecodeString(*getFlag)
+		key, err := store.KeyFromString(*getFlag)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		get(client, key)
 	}
 	if *pingFlag != "" {
-		id, err := hex.DecodeString(*pingFlag)
+		id, err := node.IDFromString(*pingFlag)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		ping(client, id)
 	}
 	if *exitFlag != "" {
-		id, err := hex.DecodeString(*exitFlag)
+		id, err := node.IDFromString(*exitFlag)
 		if err != nil {
 			log.Fatalln(err)
 		}

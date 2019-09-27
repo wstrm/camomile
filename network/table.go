@@ -5,24 +5,24 @@ import (
 )
 
 type findNodesTable struct {
-	items map[SessionID]chan *FindNodesResult
+	items map[SessionID]chan Result
 	sync.Mutex
 }
 
 func newFindNodesTable() *findNodesTable {
 	return &findNodesTable{
-		items: make(map[SessionID]chan *FindNodesResult),
+		items: make(map[SessionID]chan Result),
 		Mutex: sync.Mutex{},
 	}
 }
 
-func (t *findNodesTable) Put(id SessionID, ch chan *FindNodesResult) {
+func (t *findNodesTable) Put(id SessionID, ch chan Result) {
 	t.Lock()
 	defer t.Unlock()
 	t.items[id] = ch
 }
 
-func (t *findNodesTable) Get(id SessionID) chan *FindNodesResult {
+func (t *findNodesTable) Get(id SessionID) chan Result {
 	t.Lock()
 	defer t.Unlock()
 	return t.items[id]
@@ -35,24 +35,24 @@ func (t *findNodesTable) Remove(id SessionID) {
 }
 
 type findValueTable struct {
-	items map[SessionID]chan *FindValueResult
+	items map[SessionID]chan Result
 	sync.Mutex
 }
 
 func newFindValueTable() *findValueTable {
 	return &findValueTable{
-		items: make(map[SessionID]chan *FindValueResult),
+		items: make(map[SessionID]chan Result),
 		Mutex: sync.Mutex{},
 	}
 }
 
-func (t *findValueTable) Put(id SessionID, ch chan *FindValueResult) {
+func (t *findValueTable) Put(id SessionID, ch chan Result) {
 	t.Lock()
 	defer t.Unlock()
 	t.items[id] = ch
 }
 
-func (t *findValueTable) Get(id SessionID) chan *FindValueResult {
+func (t *findValueTable) Get(id SessionID) chan Result {
 	t.Lock()
 	defer t.Unlock()
 	return t.items[id]

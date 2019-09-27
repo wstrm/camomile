@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -251,5 +252,26 @@ func TestReplication(t *testing.T) {
 	replicatedItem := <-db.ch
 	if replicatedItem.value != testVal {
 		t.Errorf("Key did not get replicated")
+	}
+}
+
+func TestKeyFromString(t *testing.T) {
+	validKey := "53f2a6d618d66a05378bc38aee2a17c82b0310d8574200ce684539255416dfe3"
+	invalidKey := "ABC, du är mina tankar"
+
+	h, err := KeyFromString(validKey)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	expH := Key{83, 242, 166, 214, 24, 214, 106, 5, 55, 139, 195, 138, 238, 42, 23, 200, 43, 3, 16, 216, 87, 66, 0, 206, 104, 69, 57, 37, 84, 22, 223, 227}
+
+	if !bytes.Equal(h[:], expH[:]) {
+		t.Errorf("unexpected key, got: %v, expected: %v", h, expH)
+	}
+
+	_, err = KeyFromString(invalidKey)
+	if err == nil {
+		t.Errorf("expected error for string: %s", invalidKey)
 	}
 }

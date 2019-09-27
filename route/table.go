@@ -1,11 +1,9 @@
 package route
 
 import (
+	"bytes"
 	"container/list"
-	"encoding/binary"
-	"math/bits"
-	"net"
-	"sort"
+	"errors"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
@@ -13,59 +11,42 @@ import (
 const bucketSize = 20
 
 type bucket struct{ *list.List }
-type candidates []Contact
 
 // Table implements a routing table according to the Kademlia specification.
-type Table [node.IDLength]*bucket
-
-// Contact contains the node ID and an UDP address.
-type Contact struct {
-	NodeID   node.ID
-	Address  net.UDPAddr
-	distance uint64
+type Table struct {
+	buckets [node.IDLength]*bucket
+	me      Contact
 }
 
-// leadingZeros counts the number of leading bits that are zero in an uint64.
-func leadingZeros(distance uint64) int {
-	return bits.LeadingZeros64(uint64(distance))
+// Distance represents the distance between two node IDs.
+type Distance [node.IDBytesLength]byte
+
+func (d Distance) BucketIndex() int {
+	// Count number of leading zeros.
+	for i, b := range d {
+		for j := 7; j >= 0; j-- {
+			if (b>>uint(j))&1 != 0 {
+				return i*8 + (8 - j) - 1
+			}
+		}
+	}
+
+	// If distance is zero, set index to be:
+	// 	i = (distance capacity)*8 - 1
+	// i.e. the distances 0001 and 0000 have the same prefix (000).
+	return cap(d)*8 - 1
+}
+
+func (a Distance) Less(b Distance) bool {
+	return bytes.Compare(a[:], b[:]) < 0
 }
 
 // distance calculates the XOR metric for Kademlia.
-func distance(a, b node.ID) uint64 {
-	d := make([]byte, cap(a))
-
+func distance(a, b node.ID) (d Distance) {
 	for i := range a {
 		d[i] = a[i] ^ b[i]
 	}
-
-	return binary.BigEndian.Uint64(d)
-}
-
-// Len returns the number of candidates.
-func (cs candidates) Len() int {
-	return len(cs)
-}
-
-// Swap swaps the i'th and the j'th node.
-func (cs candidates) Swap(i, j int) {
-	cs[i], cs[j] = cs[j], cs[i]
-}
-
-// Less returns true if the distance of the i'th node is less than the j'th
-// node.
-func (cs candidates) Less(i, j int) bool {
-	return cs[i].distance < cs[j].distance
-}
-
-// sort sorts the candidates by their distance to the local node.
-func (cs candidates) sort() {
-	sort.Sort(cs)
-}
-
-// me returns the contact in the last bucket (the local node).
-func (rt *Table) me() Contact {
-	lastBucket := rt[bucketSize-1]
-	return lastBucket.Front().Value.(Contact)
+	return
 }
 
 // add adds the contact to the bucket.
@@ -85,9 +66,9 @@ func (b *bucket) add(c Contact) {
 	}
 }
 
-// candidates returns all the candidates in a bucket including the distance to a
+// contacts returns all the contacts in a bucket including the distance to a
 // provided node ID.
-func (b *bucket) candidates(id node.ID) (c candidates) {
+func (b *bucket) contacts(id node.ID) (c Contacts) {
 	var contact Contact
 	for e := b.Front(); e != nil; e = e.Next() {
 		contact = e.Value.(Contact)
@@ -99,59 +80,62 @@ func (b *bucket) candidates(id node.ID) (c candidates) {
 
 // Add finds the correct bucket to add the contact to and inserts the contact.
 func (rt *Table) Add(c Contact) {
-	me := rt.me()
+	me := rt.me
 
 	d := distance(me.NodeID, c.NodeID)
-	b := rt[leadingZeros(d)]
+	b := rt.buckets[d.BucketIndex()]
 	b.add(c)
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
-func (rt *Table) NClosest(id node.ID, n int) (contacts []Contact) {
-	me := rt.me()
-	d := distance(me.NodeID, id)
-	index := leadingZeros(d)
+func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
+	me := rt.me
+	d := distance(me.NodeID, target)
+	index := d.BucketIndex()
 
-	var b *bucket
-	var c candidates
+	b := rt.buckets[index]
+	sl = NewCandidates(b.contacts(me.NodeID)...)
 
-	b = rt[index]
-	c = append(c, b.candidates(me.NodeID)...)
-
-	for i := 1; c.Len() < n && (index-i >= 0 || index+i < cap(rt)); i++ {
+	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt.buckets)); i++ {
 		if index-i >= 0 {
-			b = rt[index-i]
-			c = append(c, b.candidates(me.NodeID)...)
+			b = rt.buckets[index-i]
+			sl.Add(b.contacts(me.NodeID)...)
 		}
-		if index+i < cap(rt) {
-			b = rt[index+i]
-			c = append(c, b.candidates(me.NodeID)...)
+		if index+i < cap(rt.buckets) {
+			b = rt.buckets[index+i]
+			sl.Add(b.contacts(me.NodeID)...)
 		}
 	}
 
-	c.sort()
-
-	if c.Len() < n {
-		return c
-	} else {
-		return c[:n]
+	if sl.Len() >= n {
+		// Create new truncated shortlist with only the N closest nodes.
+		sl = NewCandidates(sl.SortedContacts()[:n]...)
 	}
+
+	return
 }
 
-// New creates a new routing table with all the buckets initialized and the
-// local node added to the last bucket.
-func New(me Contact, other Contact) (rt *Table) {
-	rt = new(Table)
-
-	for i := range rt {
-		rt[i] = &bucket{list.New()}
+// NewTable creates a new routing table with all the buckets initialized and the
+// local node added to the last bucket. At least one bootstrapping node must be
+// provided.
+func NewTable(me Contact, others []Contact) (rt *Table, err error) {
+	if len(others) == 0 {
+		err = errors.New("at least one bootstrap contact must be provided")
+		return
 	}
 
-	// Add local node to last bucket.
-	rt[bucketSize-1].PushFront(me)
+	rt = new(Table)
+	rt.me = me
 
-	// Add bootstrapping contact.
-	rt.Add(other)
+	// Create all the buckets.
+	for i := range rt.buckets {
+		rt.buckets[i] = &bucket{list.New()}
+	}
 
-	return rt
+	// Add bootstrapping contacts.
+	for _, other := range others {
+		rt.Add(other)
+	}
+
+	return
 }

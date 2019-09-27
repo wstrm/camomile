@@ -10,8 +10,9 @@ import (
 
 func ExamplePacket() {
 	r := &packet.Packet{
-		SessionId: []byte{123},
-		SenderId: []byte{100},
+		SessionId:  []byte{123},
+		SenderId:   []byte{100},
+		SenderPort: 1337,
 	}
 
 	d, err := proto.Marshal(r)
@@ -25,10 +26,12 @@ func ExamplePacket() {
 		fmt.Println(err)
 	}
 
-	if !bytes.Equal([]byte{123}, rr.SessionId) {
+	if !bytes.Equal([]byte{123}, rr.GetSessionId()) {
 		fmt.Printf("expected '[123]' as SessionId in payload, got '%v'", rr.SessionId)
-	} else if !bytes.Equal([]byte{100}, rr.SenderId) {
+	} else if !bytes.Equal([]byte{100}, rr.GetSenderId()) {
 		fmt.Printf("expected '[100]' as SenderId in payload, got '%v'", rr.SenderId)
+	} else if rr.GetSenderPort() != uint32(1337) {
+		fmt.Printf("expected '1337' as SenderPort in payload, got '%v'", rr.SenderPort)
 	} else {
 		fmt.Println("got id")
 	}
@@ -43,8 +46,8 @@ func ExamplePing() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_Ping{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_Ping{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -58,9 +61,9 @@ func ExamplePing() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_Ping:
-		fmt.Printf("got ping: %v", p.Ping.GetChallenge())
+		fmt.Printf("got ping: %v", rr.GetPing().GetChallenge())
 	case nil:
 		fmt.Printf("expected type '*Packet_Ping' as payload, got '%v'", p)
 	}
@@ -75,8 +78,8 @@ func ExamplePong() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_Pong{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_Pong{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -90,9 +93,9 @@ func ExamplePong() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_Pong:
-		fmt.Printf("got pong: %v", p.Pong.GetChallenge())
+		fmt.Printf("got pong: %v", rr.GetPong().GetChallenge())
 	case nil:
 		fmt.Printf("expected type '*Packet_Pong' as payload, got '%v'", p)
 	}
@@ -108,8 +111,8 @@ func ExampleStore() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_Store{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_Store{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -123,9 +126,9 @@ func ExampleStore() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_Store:
-		fmt.Printf("got store: %v=%v", p.Store.GetKey(), p.Store.GetValue())
+		fmt.Printf("got store: %v=%v", rr.GetStore().GetKey(), p.Store.GetValue())
 	case nil:
 		fmt.Printf("expected type '*Packet_Store' as payload, got '%v'", p)
 	}
@@ -141,8 +144,8 @@ func ExampleValue() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_Value{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_Value{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -156,9 +159,9 @@ func ExampleValue() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_Value:
-		fmt.Printf("got value: %v=%v", p.Value.GetKey(), p.Value.GetValue())
+		fmt.Printf("got value: %v=%v", rr.GetValue().GetKey(), rr.GetValue().GetValue())
 	case nil:
 		fmt.Printf("expected type '*Packet_Value' as payload, got '%v'", p)
 	}
@@ -173,8 +176,8 @@ func ExampleFindValue() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_FindValue{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_FindValue{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -188,9 +191,9 @@ func ExampleFindValue() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_FindValue:
-		fmt.Printf("got find_value: %v", p.FindValue.GetKey())
+		fmt.Printf("got find_value: %v", rr.GetFindValue().GetKey())
 	case nil:
 		fmt.Printf("expected type '*Packet_FindValue' as payload, got '%v'", p)
 	}
@@ -205,8 +208,8 @@ func ExampleFindNode() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_FindNode{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_FindNode{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -220,9 +223,9 @@ func ExampleFindNode() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_FindNode:
-		fmt.Printf("got find_node: %v", p.FindNode.GetNodeId())
+		fmt.Printf("got find_node: %v", rr.GetFindNode().GetNodeId())
 	case nil:
 		fmt.Printf("expected type '*Packet_FindNode' as payload, got '%v'", p)
 	}
@@ -249,8 +252,8 @@ func ExampleNodeList() {
 
 	r := &packet.Packet{
 		SessionId: []byte{123},
-		SenderId: []byte{100},
-		Payload:  &packet.Packet_NodeList{payload},
+		SenderId:  []byte{100},
+		Payload:   &packet.Packet_NodeList{payload},
 	}
 
 	d, err := proto.Marshal(r)
@@ -264,9 +267,9 @@ func ExampleNodeList() {
 		fmt.Println(err)
 	}
 
-	switch p := rr.Payload.(type) {
+	switch p := rr.GetPayload().(type) {
 	case *packet.Packet_NodeList:
-		n := p.NodeList.GetNodes()
+		n := rr.GetNodeList().GetNodes()
 		if fmt.Sprintf("%v", n) == fmt.Sprintf("%v", nodes) {
 			fmt.Printf("got node_list")
 		} else {

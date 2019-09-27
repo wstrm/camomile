@@ -1,6 +1,7 @@
 package route
 
 import (
+	"bytes"
 	"math/rand" // Not cryptographically secure on purpose.
 	"testing"
 
@@ -38,25 +39,25 @@ func TestDistance(t *testing.T) {
 	testTable := []struct {
 		a     node.ID
 		b     node.ID
-		dist  uint64
+		dist  Distance
 		index int
 	}{
 		{
-			a:     randomID(),
-			b:     randomID(),
-			dist:  9431948493169447405,
-			index: 0,
+			a:     makeID([]byte{1}),
+			b:     makeID([]byte{1}),
+			dist:  Distance{0},
+			index: 255,
 		},
 		{
-			a:     randomID(),
-			b:     randomID(),
-			dist:  8624543047408693312,
-			index: 1,
+			a:     makeID([]byte{1}),
+			b:     makeID([]byte{2}),
+			dist:  Distance{3},
+			index: 6,
 		},
 		{
 			a:     makeID([]byte{1}),
 			b:     makeID([]byte{5}),
-			dist:  288230376151711744,
+			dist:  Distance{4},
 			index: 5,
 		},
 	}
@@ -64,13 +65,13 @@ func TestDistance(t *testing.T) {
 	for _, test := range testTable {
 		d := distance(test.a, test.b)
 
-		if d != test.dist {
-			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, d, test.dist)
+		if !bytes.Equal(d[:], test.dist[:]) {
+			t.Errorf("unexpected distance for:\n\ta=%x,\n\tb=%x,\ngot: %d, exp: %d", test.a, test.b, d, test.dist)
 		}
 
-		i := leadingZeros(d)
+		i := d.BucketIndex()
 		if i != test.index {
-			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, expected: %d", test.a, test.b, i, test.index)
+			t.Errorf("unexpected index for:\n\ta=%x,\n\tb=%x,\ngot: %d, exp: %d", test.a, test.b, i, test.index)
 		}
 	}
 }
@@ -79,11 +80,26 @@ func TestMe(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt := New(me, boot)
-	rtMe := rt.me()
+	rt, _ := NewTable(me, []Contact{boot})
+	rtMe := rt.me
 
 	if !me.NodeID.Equal(rtMe.NodeID) {
 		t.Errorf("inequal node ID, %v != %v", me.NodeID, rtMe.NodeID)
+	}
+}
+
+func TestNewTable(t *testing.T) {
+	me := Contact{NodeID: zeroID()}
+	boots := []Contact{Contact{NodeID: randomID()}, Contact{NodeID: randomID()}}
+
+	_, err := NewTable(me, boots)
+	if err != nil {
+		t.Errorf("cannot create table: %w", err)
+	}
+
+	_, err = NewTable(me, []Contact{})
+	if err == nil {
+		t.Error("expected error on empty bootstrap slice")
 	}
 }
 
@@ -103,11 +119,11 @@ func TestAdd(t *testing.T) {
 	for i < 7 {
 		c1 := Contact{NodeID: makeID([]byte{1 << i})}
 
-		rt := New(me, boot)
+		rt, _ := NewTable(me, []Contact{boot})
 
 		rt.Add(c1)
 
-		c2 := rt[j].Front().Value.(Contact)
+		c2 := rt.buckets[j].Front().Value.(Contact)
 
 		if !c1.NodeID.Equal(c2.NodeID) {
 			t.Errorf("inequal node ID, %v != %v", c1.NodeID, c2.NodeID)
@@ -119,17 +135,17 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDuplicateContact(t *testing.T) {
-	me := Contact{NodeID: randomID()}
-	boot := Contact{NodeID: randomID()}
-	c1 := Contact{NodeID: randomID()}
+	me := Contact{NodeID: makeID([]byte{1})}
+	boot := Contact{NodeID: zeroID()}
+	c1 := Contact{NodeID: makeID([]byte{2})}
 	d := distance(me.NodeID, c1.NodeID)
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 
 	rt.Add(c1)
 	rt.Add(c1)
 
-	bucketLen := rt[leadingZeros(d)].Len()
+	bucketLen := rt.buckets[d.BucketIndex()].Len()
 	expLen := 1
 	if bucketLen != expLen {
 		t.Errorf("unexpected bucket length, %d != %d", bucketLen, expLen)
@@ -140,7 +156,7 @@ func TestNClosest(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 
 	var contacts []Contact
 	var contact Contact
@@ -151,14 +167,14 @@ func TestNClosest(t *testing.T) {
 	}
 
 	closest := rt.NClosest(me.NodeID, 500)
-	n := len(closest)
-	if n != 32 { // 1 bootstrap node and 1 local node.
-		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 32)
+	n := closest.Len()
+	if n != 31 { // 1 bootstrap node.
+		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 32)
 	}
 
 	for _, contact := range contacts {
 		found := false
-		for _, c := range closest {
+		for _, c := range closest.SortedContacts() {
 			if contact.NodeID.Equal(c.NodeID) {
 				found = true
 				break
@@ -169,17 +185,26 @@ func TestNClosest(t *testing.T) {
 		}
 	}
 
+	// Fetch 20 closest contacts for local node.
 	closest = rt.NClosest(me.NodeID, 20)
-	n = len(closest)
+	n = closest.Len()
 	if n != 20 {
-		t.Errorf("unexpected number of contacts, got: %d, expected: %d", n, 20)
+		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 20)
+	}
+
+	// Fetch 30 closest contacts for bootstrap node.
+	closest = rt.NClosest(boot.NodeID, 30)
+	n = closest.Len()
+	if n != 30 {
+		t.Errorf("unexpected number of contacts, got: %d, exp: %d", n, 30)
 	}
 }
 
 func BenchmarkAdd(b *testing.B) {
-	b.StopTimer()
-	rt := New(Contact{NodeID: randomID()}, Contact{NodeID: randomID()})
-	b.StartTimer()
+	rt, _ := NewTable(
+		Contact{NodeID: randomID()},
+		[]Contact{Contact{NodeID: randomID()}})
+	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		rt.Add(Contact{NodeID: randomID()})
@@ -187,10 +212,9 @@ func BenchmarkAdd(b *testing.B) {
 }
 
 func BenchmarkDistance(b *testing.B) {
-	b.StopTimer()
 	id1 := randomID()
 	id2 := randomID()
-	b.StartTimer()
+	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		distance(id1, id2)
@@ -198,11 +222,10 @@ func BenchmarkDistance(b *testing.B) {
 }
 
 func BenchmarkNClosest(b *testing.B) {
-	b.StopTimer()
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt := New(me, boot)
+	rt, _ := NewTable(me, []Contact{boot})
 
 	var contacts []Contact
 	var contact Contact
@@ -214,7 +237,7 @@ func BenchmarkNClosest(b *testing.B) {
 		contacts = append(contacts, contact)
 		rt.Add(contact)
 	}
-	b.StartTimer()
+	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		rt.NClosest(contacts[n%len(contacts)].NodeID, 10)

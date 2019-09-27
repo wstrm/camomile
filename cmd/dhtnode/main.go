@@ -1,30 +1,32 @@
 package main
 
 import (
-	"fmt"
-	"github.com/optmzr/d7024e-dht/cmd"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+
+	"github.com/optmzr/d7024e-dht/ctl"
+	"github.com/optmzr/d7024e-dht/dht"
+	"github.com/optmzr/d7024e-dht/network"
+	"github.com/optmzr/d7024e-dht/node"
+	"github.com/optmzr/d7024e-dht/route"
 )
 
-func handlePacket(conn *net.UDPConn) {
-	// TODO: implement what happens with received messages.
-	// go-routines go here and connect to channel for message proccessing?
-}
+func rpcServe(dht *dht.DHT) {
+	api := ctl.NewAPI(dht)
 
-func rpcServer() {
-	api := new(cmd.API)
 	err := rpc.Register(api)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	rpc.HandleHTTP()
 	l, err := net.Listen("tcp", ":1234")
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
+
 	err = http.Serve(l, nil)
 	if err != nil {
 		log.Fatalln(err)
@@ -32,35 +34,48 @@ func rpcServer() {
 }
 
 func main() {
-	fmt.Println("dhtnode")
-	go rpcServer()
-
-	// Listen to all addresses on port 8118.
-	udpAddress, err := net.ResolveUDPAddr("udp", ":8118")
+	address, err := net.ResolveUDPAddr("udp", network.UdpPort)
 	if err != nil {
-		log.Fatalf("Unable to resolve IP and Port, %v", err)
-	}
-	conn, err := net.ListenUDP("udp", udpAddress)
-	if err != nil {
-		log.Fatalf("Unable to listen at %v, %v", udpAddress.String(), err)
-		return
+		log.Fatalln(err)
 	}
 
-	defer conn.Close()
+	// TODO: Parse flags from command line and populate this slice.
+	others := []route.Contact{
+		route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		},
+		route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		},
+		route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		},
+	}
 
-	for {
-		fmt.Println("Listening for UDP packets on port 8118")
-		data := make([]byte, 512)
+	me := route.Contact{
+		NodeID:  node.NewID(),
+		Address: *address,
+	}
 
-		n, addr, err := conn.ReadFromUDP(data)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		s := string(data[:n])
+	log.Printf("My node ID is: %v", me.NodeID)
 
-		// Print the request data.
-		fmt.Println("Received a message from: ", addr)
-		fmt.Println(s)
-		go handlePacket(conn)
+	nw, err := network.NewUDPNetwork(me)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	dht, err := dht.New(me, others, nw)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	go rpcServe(dht)
+
+	err = nw.Listen()
+	if err != nil {
+		log.Fatalln(err)
 	}
 }

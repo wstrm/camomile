@@ -8,7 +8,7 @@ func TestTableNodes(t *testing.T) {
 	table := newFindNodesTable()
 
 	id := generateID()
-	ch := make(chan *FindNodesResult)
+	ch := make(chan Result)
 
 	table.Put(id, ch)
 
@@ -28,7 +28,7 @@ func TestTableFindValue(t *testing.T) {
 	table := newFindValueTable()
 
 	id := generateID()
-	ch := make(chan *FindValueResult)
+	ch := make(chan Result)
 
 	table.Put(id, ch)
 

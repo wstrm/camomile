@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -222,4 +223,21 @@ func (db *Database) republishHandler() {
 			db.setReplicate()
 		}
 	}
+}
+
+// KeyFromString parses a hexadecimal representation of the key into a Key.
+func KeyFromString(str string) (key Key, err error) {
+	h, err := hex.DecodeString(str)
+	if err != nil {
+		err = fmt.Errorf("cannot decode hex string as key: %w", err)
+		return
+	}
+
+	copy(key[:], h)
+	return
+}
+
+// String returns the hexadecimal representation of a Key.
+func (k Key) String() string {
+	return hex.EncodeToString(k[:])
 }
