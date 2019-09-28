@@ -17,7 +17,7 @@ var addr *net.UDPAddr
 var n Network
 
 func init() {
-	addr, _ = net.ResolveUDPAddr("udp", UdpPort)
+	addr, _ = net.ResolveUDPAddr("udp", ":8118")
 	me := route.Contact{
 		NodeID:  node.NewID(),
 		Address: *addr,
