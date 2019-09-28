@@ -289,8 +289,6 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 		Payload:    &packet.Packet_NodeList{NodeList: payload},
 	}
 
-	log.Println("Nodes sent:", len(p.GetNodeList().GetNodes()))
-
 	err := send(&addr, *p)
 	if err != nil {
 		return err
@@ -309,13 +307,12 @@ func (u *udpNetwork) Listen() error {
 	defer conn.Close()
 
 	// Notify everyone that we're ready.
-	log.Println(conn)
 	u.ready <- struct{}{}
 
 	for {
 		data := make([]byte, 1500)
 		n, addr, err := conn.ReadFromUDP(data)
-		log.Println("Packet from:", addr)
+		log.Printf("Received packet from: %v", addr)
 		if err != nil {
 			log.Fatalf("Error when reading from UDP from address %v: %s", addr.String(), err)
 		}
