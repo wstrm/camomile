@@ -289,6 +289,8 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 		Payload:    &packet.Packet_NodeList{NodeList: payload},
 	}
 
+	log.Println("Nodes sent:", len(p.GetNodeList().GetNodes()))
+
 	err := send(&addr, *p)
 	if err != nil {
 		return err
