@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"container/list"
 	"errors"
+	"sync"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
 
 const bucketSize = 20
 
-type bucket struct{ *list.List }
+type bucket struct {
+	*list.List
+	rw sync.RWMutex
+}
 
 // Table implements a routing table according to the Kademlia specification.
 type Table struct {
@@ -51,6 +55,9 @@ func distance(a, b node.ID) (d Distance) {
 
 // add adds the contact to the bucket.
 func (b *bucket) add(c Contact) {
+	b.rw.Lock()
+	defer b.rw.Unlock()
+
 	// Search for the element in case it already exists and move it to the
 	// front.
 	for e := b.Front(); e != nil; e = e.Next() {
@@ -69,6 +76,9 @@ func (b *bucket) add(c Contact) {
 // contacts returns all the contacts in a bucket including the distance to a
 // provided node ID.
 func (b *bucket) contacts(id node.ID) (c Contacts) {
+	b.rw.RLock()
+	defer b.rw.RUnlock()
+
 	var contact Contact
 	for e := b.Front(); e != nil; e = e.Next() {
 		contact = e.Value.(Contact)
@@ -129,7 +139,7 @@ func NewTable(me Contact, others []Contact) (rt *Table, err error) {
 
 	// Create all the buckets.
 	for i := range rt.buckets {
-		rt.buckets[i] = &bucket{list.New()}
+		rt.buckets[i] = &bucket{List: list.New()}
 	}
 
 	// Add bootstrapping contacts.
