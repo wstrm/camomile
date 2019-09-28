@@ -2,8 +2,11 @@ package route
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand" // Not cryptographically secure on purpose.
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
@@ -242,4 +245,46 @@ func BenchmarkNClosest(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		rt.NClosest(contacts[n%len(contacts)].NodeID, 10)
 	}
+}
+
+func TestNClosest_concurrent(t *testing.T) {
+	me := Contact{NodeID: randomID()}
+	boot := Contact{NodeID: randomID()}
+
+	rt, _ := NewTable(me, []Contact{boot})
+
+	var contacts []Contact
+	var wg sync.WaitGroup
+
+	contacts = append(contacts, me, boot)
+
+	fmt.Print("Add call order: ")
+	for i := 0; i < 100; i++ {
+		contact := Contact{NodeID: randomID()}
+		contacts = append(contacts, contact)
+
+		wg.Add(1)
+
+		go func(i int) {
+			time.Sleep(time.Duration(rand.Int()%2) * time.Millisecond)
+			rt.Add(contact)
+			fmt.Printf("%d ", i)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	fmt.Println()
+
+	fmt.Print("NClosest call order: ")
+	for n := 0; n < 100; n++ {
+		wg.Add(1)
+		go func(n int) {
+			time.Sleep(time.Duration(rand.Int()%2) * time.Millisecond)
+			rt.NClosest(contacts[n%len(contacts)].NodeID, 10)
+			fmt.Printf("%d ", n)
+			wg.Done()
+		}(n)
+	}
+	wg.Wait()
+	fmt.Println()
 }
