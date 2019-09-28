@@ -25,11 +25,11 @@ type Candidates struct {
 	contacts contactMap
 }
 
-func NewContact(target, id node.ID, address net.UDPAddr) Contact {
+// TODO: Ignore target?
+func NewContact(id node.ID, address net.UDPAddr) Contact {
 	return Contact{
-		NodeID:   id,
-		Address:  address,
-		distance: distance(target, id),
+		NodeID:  id,
+		Address: address,
 	}
 }
 
@@ -56,10 +56,7 @@ func (cs Contacts) sort() {
 
 func (sl *Candidates) Add(contacts ...Contact) {
 	for _, contact := range contacts {
-		sl.contacts[contact.NodeID] = NewContact(
-			sl.target,
-			contact.NodeID,
-			contact.Address)
+		sl.contacts[contact.NodeID] = contact
 	}
 }
 
@@ -77,6 +74,7 @@ func (sl *Candidates) SortedContacts() Contacts {
 	var contacts Contacts
 
 	for _, contact := range sl.contacts {
+		contact.distance = distance(sl.target, contact.NodeID)
 		contacts = append(contacts, contact)
 	}
 	contacts.sort()
@@ -91,10 +89,7 @@ func NewCandidates(target node.ID, contacts ...Contact) *Candidates {
 	sl.contacts = make(contactMap)
 
 	for _, contact := range contacts {
-		sl.contacts[contact.NodeID] = NewContact(
-			sl.target,
-			contact.NodeID,
-			contact.Address)
+		sl.contacts[contact.NodeID] = contact
 	}
 
 	return sl
