@@ -109,7 +109,7 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	index := d.BucketIndex()
 
 	b := rt.buckets[index]
-	sl = NewCandidates(b.contacts(me.NodeID)...)
+	sl = NewCandidates(target, b.contacts(me.NodeID)...)
 
 	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt.buckets)); i++ {
 		if index-i >= 0 {
@@ -124,7 +124,7 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 
 	if sl.Len() >= n {
 		// Create new truncated shortlist with only the N closest nodes.
-		sl = NewCandidates(sl.SortedContacts()[:n]...)
+		sl = NewCandidates(target, sl.SortedContacts()[:n]...)
 	}
 
 	return

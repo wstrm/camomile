@@ -21,6 +21,7 @@ type contactMap map[node.ID]Contact
 
 // Candidates implements a set of contacts.
 type Candidates struct {
+	target   node.ID
 	contacts contactMap
 }
 
@@ -55,7 +56,10 @@ func (cs Contacts) sort() {
 
 func (sl *Candidates) Add(contacts ...Contact) {
 	for _, contact := range contacts {
-		sl.contacts[contact.NodeID] = contact
+		sl.contacts[contact.NodeID] = NewContact(
+			sl.target,
+			contact.NodeID,
+			contact.Address)
 	}
 }
 
@@ -81,11 +85,17 @@ func (sl *Candidates) SortedContacts() Contacts {
 }
 
 // NewCandidates creates a new shortlist set with the provided contacts.
-func NewCandidates(contacts ...Contact) *Candidates {
+func NewCandidates(target node.ID, contacts ...Contact) *Candidates {
 	sl := new(Candidates)
+	sl.target = target
 	sl.contacts = make(contactMap)
+
 	for _, contact := range contacts {
-		sl.contacts[contact.NodeID] = contact
+		sl.contacts[contact.NodeID] = NewContact(
+			sl.target,
+			contact.NodeID,
+			contact.Address)
 	}
+
 	return sl
 }
