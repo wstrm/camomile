@@ -11,4 +11,5 @@ COPY . /usr/src/dht
 RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN go generate ./...
 RUN go install ./cmd/...
-CMD ["dhtnode"]
+
+ENTRYPOINT ["./bin/run-node.sh"]
