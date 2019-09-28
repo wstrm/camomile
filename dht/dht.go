@@ -52,12 +52,9 @@ func (dht *DHT) findNodesRequestHandler() {
 
 		// Add node so it is moved to the top of its bucket in the routing table.
 		dht.rt.Add(request.From)
-		log.Println(request.From)
 
 		// Fetch this nodes contacts that are closest to the requested target.
 		closest := dht.rt.NClosest(request.Target, k).SortedContacts()
-		log.Println("Closest", len(closest))
-		logAcquaintedWith(closest)
 
 		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
 		if err != nil {
