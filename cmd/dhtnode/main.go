@@ -1,11 +1,13 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
-	"flag"
+	"strings"
 
 	"github.com/optmzr/d7024e-dht/ctl"
 	"github.com/optmzr/d7024e-dht/dht"
@@ -34,6 +36,18 @@ func rpcServe(dht *dht.DHT) {
 	}
 }
 
+func flagSplit(flag string) (string, string) {
+	if flag == "" {
+		return "", ""
+	}
+
+	components := strings.Split(flag, "@")
+	nodeID := components[0]
+	address := components[1]
+
+	return nodeID, address
+}
+
 func main() {
 	address, err := net.ResolveUDPAddr("udp", network.UdpPort)
 	if err != nil {
@@ -45,27 +59,59 @@ func main() {
 
 	flag.Parse()
 
-	meNodeID, meAddress := (meFlag, "@")
+	var others []route.Contact
 
-	// TODO: Parse flags from command line and populate this slice.
-	others := []route.Contact{
-		route.Contact{
-			NodeID:  node.NewID(),
-			Address: *address,
-		},
-		route.Contact{
-			NodeID:  node.NewID(),
-			Address: *address,
-		},
-		route.Contact{
-			NodeID:  node.NewID(),
-			Address: *address,
-		},
+	otherID, otherAddress := flagSplit(*otherFlag)
+	if (otherID == "") || (otherAddress == "") {
+		fmt.Println("asss")
+		others = []route.Contact{
+			route.Contact{
+				NodeID:  node.NewID(),
+				Address: *address,
+			},
+		}
+	} else {
+		nodeID, err := node.IDFromString(otherID)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		nodeAddress, err := net.ResolveUDPAddr("udp", otherAddress)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		others = []route.Contact{
+			route.Contact{
+				NodeID:  nodeID,
+				Address: *nodeAddress,
+			},
+		}
 	}
 
-	me := route.Contact{
-		NodeID:  node.NewID(),
-		Address: *address,
+	var me route.Contact
+
+	meID, meAddress := flagSplit(*meFlag)
+	if (meID == "") || (meAddress == "") {
+		me = route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		}
+	} else {
+		nodeID, err := node.IDFromString(meID)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		nodeAddress, err := net.ResolveUDPAddr("udp", meAddress)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		me = route.Contact{
+			NodeID:  nodeID,
+			Address: *nodeAddress,
+		}
 	}
 
 	log.Printf("My node ID is: %v", me.NodeID)
