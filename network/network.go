@@ -307,11 +307,13 @@ func (u *udpNetwork) Listen() error {
 	defer conn.Close()
 
 	// Notify everyone that we're ready.
+	log.Println(conn)
 	u.ready <- struct{}{}
 
 	for {
 		data := make([]byte, 1500)
 		n, addr, err := conn.ReadFromUDP(data)
+		log.Println("Packet from:", addr)
 		if err != nil {
 			log.Fatalf("Error when reading from UDP from address %v: %s", addr.String(), err)
 		}

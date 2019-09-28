@@ -53,6 +53,8 @@ func (dht *DHT) findNodesRequestHandler() {
 
 		// Fetch this nodes contacts that are closest to the requested target.
 		closest := dht.rt.NClosest(request.Target, k).SortedContacts()
+		log.Println(dht.rt)
+		logAcquaintedWith(closest)
 
 		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
 		if err != nil {

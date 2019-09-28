@@ -92,6 +92,11 @@ func (b *bucket) contacts(id node.ID) (c Contacts) {
 func (rt *Table) Add(c Contact) {
 	me := rt.me
 
+	// Do not add local node to routing table.
+	if me.NodeID.Equal(c.NodeID) {
+		return
+	}
+
 	d := distance(me.NodeID, c.NodeID)
 	b := rt.buckets[d.BucketIndex()]
 	b.add(c)
