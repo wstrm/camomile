@@ -51,14 +51,14 @@ var me route.Contact
 
 func init() {
 	id := node.NewID()
-	me = route.NewContact(id, id, net.UDPAddr{
+	me = route.NewContact(id, net.UDPAddr{
 		IP:   net.IP{10, 10, 10, 254},
 		Port: 123,
 		Zone: "",
 	})
 
 	for i := 0; i < 100; i++ {
-		others = append(others, route.NewContact(id, node.NewID(), net.UDPAddr{
+		others = append(others, route.NewContact(node.NewID(), net.UDPAddr{
 			IP:   net.IP{10, 10, 10, byte(i)},
 			Port: 123,
 			Zone: "",

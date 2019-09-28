@@ -92,6 +92,11 @@ func (b *bucket) contacts(id node.ID) (c Contacts) {
 func (rt *Table) Add(c Contact) {
 	me := rt.me
 
+	// Do not add local node to routing table.
+	if me.NodeID.Equal(c.NodeID) {
+		return
+	}
+
 	d := distance(me.NodeID, c.NodeID)
 	b := rt.buckets[d.BucketIndex()]
 	b.add(c)
@@ -104,7 +109,7 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	index := d.BucketIndex()
 
 	b := rt.buckets[index]
-	sl = NewCandidates(b.contacts(me.NodeID)...)
+	sl = NewCandidates(target, b.contacts(me.NodeID)...)
 
 	for i := 1; sl.Len() < n && (index-i >= 0 || index+i < cap(rt.buckets)); i++ {
 		if index-i >= 0 {
@@ -119,7 +124,7 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 
 	if sl.Len() >= n {
 		// Create new truncated shortlist with only the N closest nodes.
-		sl = NewCandidates(sl.SortedContacts()[:n]...)
+		sl = NewCandidates(target, sl.SortedContacts()[:n]...)
 	}
 
 	return

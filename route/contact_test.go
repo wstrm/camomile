@@ -3,36 +3,28 @@ package route
 import (
 	"net"
 	"testing"
-
-	"github.com/optmzr/d7024e-dht/node"
 )
 
-func randomContacts(target node.ID, n int) (contacts []Contact) {
+func randomContacts(n int) (contacts []Contact) {
 	for i := 0; i < n; i++ {
-		contacts = append(contacts, NewContact(target, randomID(), net.UDPAddr{}))
+		contacts = append(contacts, NewContact(randomID(), net.UDPAddr{}))
 	}
 	return
 }
 
 func TestNewContact(t *testing.T) {
-	target := zeroID()
 	id := randomID()
-	contact := NewContact(target, id, net.UDPAddr{})
+	contact := NewContact(id, net.UDPAddr{})
 	if !id.Equal(contact.NodeID) {
 		t.Errorf("unexpected node ID, got: %v, exp: %v", contact.NodeID, id)
-	}
-
-	expDistance := distance(target, id)
-	if contact.distance != expDistance {
-		t.Errorf("unexpected distance, got: %v, exp: %v", contact.distance, expDistance)
 	}
 }
 
 func TestNewCandidates(t *testing.T) {
 	numContacts := 10
-	contacts := randomContacts(zeroID(), numContacts)
+	contacts := randomContacts(numContacts)
 
-	sl := NewCandidates(contacts...)
+	sl := NewCandidates(zeroID(), contacts...)
 
 	slLen := sl.Len()
 	if slLen != numContacts {
@@ -43,9 +35,9 @@ func TestNewCandidates(t *testing.T) {
 func TestCandidatesSortedContacts(t *testing.T) {
 	numContacts := 10
 	target := zeroID()
-	contacts := randomContacts(target, numContacts)
+	contacts := randomContacts(numContacts)
 
-	sl := NewCandidates(contacts...)
+	sl := NewCandidates(target, contacts...)
 	sorted := sl.SortedContacts()
 
 	sortedLen := len(sorted)
@@ -65,9 +57,9 @@ func TestCandidatesSortedContacts(t *testing.T) {
 
 func TestCandidatesRemove(t *testing.T) {
 	numContacts := 10
-	contacts := randomContacts(zeroID(), numContacts)
+	contacts := randomContacts(numContacts)
 
-	sl := NewCandidates(contacts...)
+	sl := NewCandidates(zeroID(), contacts...)
 
 	sl.Remove(contacts[4])
 
@@ -85,7 +77,7 @@ func TestCandidatesRemove(t *testing.T) {
 }
 
 func TestCandidatesRemoveNonExisting(t *testing.T) {
-	sl := NewCandidates(randomContacts(zeroID(), 10)...)
+	sl := NewCandidates(zeroID(), randomContacts(10)...)
 	nonExisting := randomID()
 
 	sorted := sl.SortedContacts()
@@ -96,5 +88,5 @@ func TestCandidatesRemoveNonExisting(t *testing.T) {
 	}
 
 	// Shouldn't panic.
-	sl.Remove(NewContact(zeroID(), nonExisting, net.UDPAddr{}))
+	sl.Remove(NewContact(nonExisting, net.UDPAddr{}))
 }

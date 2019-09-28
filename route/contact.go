@@ -21,14 +21,15 @@ type contactMap map[node.ID]Contact
 
 // Candidates implements a set of contacts.
 type Candidates struct {
+	target   node.ID
 	contacts contactMap
 }
 
-func NewContact(target, id node.ID, address net.UDPAddr) Contact {
+// TODO: Ignore target?
+func NewContact(id node.ID, address net.UDPAddr) Contact {
 	return Contact{
-		NodeID:   id,
-		Address:  address,
-		distance: distance(target, id),
+		NodeID:  id,
+		Address: address,
 	}
 }
 
@@ -73,6 +74,7 @@ func (sl *Candidates) SortedContacts() Contacts {
 	var contacts Contacts
 
 	for _, contact := range sl.contacts {
+		contact.distance = distance(sl.target, contact.NodeID)
 		contacts = append(contacts, contact)
 	}
 	contacts.sort()
@@ -81,11 +83,14 @@ func (sl *Candidates) SortedContacts() Contacts {
 }
 
 // NewCandidates creates a new shortlist set with the provided contacts.
-func NewCandidates(contacts ...Contact) *Candidates {
+func NewCandidates(target node.ID, contacts ...Contact) *Candidates {
 	sl := new(Candidates)
+	sl.target = target
 	sl.contacts = make(contactMap)
+
 	for _, contact := range contacts {
 		sl.contacts[contact.NodeID] = contact
 	}
+
 	return sl
 }

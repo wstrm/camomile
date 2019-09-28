@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+	"strings"
 
 	"github.com/optmzr/d7024e-dht/ctl"
 	"github.com/optmzr/d7024e-dht/dht"
@@ -12,6 +14,8 @@ import (
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
 )
+
+const defaultAddress = ":8118"
 
 func rpcServe(dht *dht.DHT) {
 	api := ctl.NewAPI(dht)
@@ -33,31 +37,81 @@ func rpcServe(dht *dht.DHT) {
 	}
 }
 
+func flagSplit(flag string) (string, string) {
+	if flag == "" {
+		return "", ""
+	}
+
+	components := strings.Split(flag, "@")
+	nodeID := components[0]
+	address := components[1]
+
+	return nodeID, address
+}
+
 func main() {
-	address, err := net.ResolveUDPAddr("udp", network.UdpPort)
+	address, err := net.ResolveUDPAddr("udp", defaultAddress)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// TODO: Parse flags from command line and populate this slice.
-	others := []route.Contact{
-		route.Contact{
-			NodeID:  node.NewID(),
-			Address: *address,
-		},
-		route.Contact{
-			NodeID:  node.NewID(),
-			Address: *address,
-		},
-		route.Contact{
-			NodeID:  node.NewID(),
-			Address: *address,
-		},
+	meFlag := flag.String("me", "", "Defaults to an auto generated ID, IP defaults to localhost")
+	otherFlag := flag.String("other", "", "Waits for incoming connections if not supplied")
+
+	flag.Parse()
+
+	var others []route.Contact
+
+	otherID, otherAddress := flagSplit(*otherFlag)
+	if (otherID == "") || (otherAddress == "") {
+		others = []route.Contact{
+			route.Contact{
+				NodeID:  node.NewID(),
+				Address: *address,
+			},
+		}
+	} else {
+		nodeID, err := node.IDFromString(otherID)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		nodeAddress, err := net.ResolveUDPAddr("udp", otherAddress)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		others = []route.Contact{
+			route.Contact{
+				NodeID:  nodeID,
+				Address: *nodeAddress,
+			},
+		}
 	}
 
-	me := route.Contact{
-		NodeID:  node.NewID(),
-		Address: *address,
+	var me route.Contact
+
+	meID, meAddress := flagSplit(*meFlag)
+	if (meID == "") || (meAddress == "") {
+		me = route.Contact{
+			NodeID:  node.NewID(),
+			Address: *address,
+		}
+	} else {
+		nodeID, err := node.IDFromString(meID)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		nodeAddress, err := net.ResolveUDPAddr("udp", meAddress)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		me = route.Contact{
+			NodeID:  nodeID,
+			Address: *nodeAddress,
+		}
 	}
 
 	log.Printf("My node ID is: %v", me.NodeID)

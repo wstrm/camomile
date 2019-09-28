@@ -16,8 +16,6 @@ const Size256 = 256 / 8
 
 type SessionID [Size256]byte
 
-const UdpPort = ":8118"
-
 type randRead func([]byte) (int, error)
 
 var rng randRead
@@ -300,7 +298,7 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 }
 
 func (u *udpNetwork) Listen() error {
-	log.Printf("Listening for UDP packets on port %v", UdpPort)
+	log.Printf("Listening for UDP packets on port %s", u.me.Address.String())
 
 	conn, err := net.ListenUDP("udp", &u.me.Address)
 	if err != nil {
@@ -314,6 +312,7 @@ func (u *udpNetwork) Listen() error {
 	for {
 		data := make([]byte, 1500)
 		n, addr, err := conn.ReadFromUDP(data)
+		log.Printf("Received packet from: %v", addr)
 		if err != nil {
 			log.Fatalf("Error when reading from UDP from address %v: %s", addr.String(), err)
 		}

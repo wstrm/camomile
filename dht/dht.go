@@ -17,6 +17,7 @@ const k = 20 // Bucket size.
 type DHT struct {
 	rt *route.Table
 	nw network.Network
+	me route.Contact
 }
 
 func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT, err error) {
@@ -28,6 +29,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	}
 
 	dht.nw = nw
+	dht.me = me
 
 	go func(dht *DHT, me route.Contact) {
 		<-dht.nw.ReadyCh()
@@ -98,6 +100,7 @@ type awaitResult struct {
 func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 	nw := dht.nw
 	rt := dht.rt
+	me := dht.me
 	target := call.Target()
 
 	// The first α contacts selected are used to create a *shortlist* for the
@@ -128,8 +131,8 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 			if i >= α && !rest {
 				break // Limit to α contacts per shortlist.
 			}
-			if sent[contact.NodeID] {
-				continue // Ignore already contacted contacts.
+			if sent[contact.NodeID] || contact.NodeID.Equal(me.NodeID) {
+				continue // Ignore already contacted contacts or local node.
 			}
 
 			ch, err := call.Do(nw, contact.Address)
