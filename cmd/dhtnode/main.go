@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -113,6 +114,13 @@ func main() {
 			Address: *nodeAddress,
 		}
 	}
+
+	// Log line file:linenumber.
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// Prefix log output with "[<NodeID>]".
+	shortID := me.NodeID.String()[:6]
+	colorID := me.NodeID[0]
+	log.SetPrefix(fmt.Sprintf("[\033[38;5;%dm%s\033[0m] ", colorID, shortID))
 
 	log.Printf("My node ID is: %v", me.NodeID)
 

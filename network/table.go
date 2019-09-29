@@ -12,7 +12,6 @@ type findNodesTable struct {
 func newFindNodesTable() *findNodesTable {
 	return &findNodesTable{
 		items: make(map[SessionID]chan Result),
-		Mutex: sync.Mutex{},
 	}
 }
 
@@ -42,7 +41,6 @@ type findValueTable struct {
 func newFindValueTable() *findValueTable {
 	return &findValueTable{
 		items: make(map[SessionID]chan Result),
-		Mutex: sync.Mutex{},
 	}
 }
 
@@ -72,7 +70,6 @@ type pingTable struct {
 func newPingTable() *pingTable {
 	return &pingTable{
 		items: make(map[SessionID]chan *PingResult),
-		Mutex: sync.Mutex{},
 	}
 }
 

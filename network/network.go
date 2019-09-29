@@ -182,13 +182,13 @@ func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan Result, e
 		Payload:    &packet.Packet_FindNode{FindNode: payload},
 	}
 
+	results := make(chan Result)
+	u.fnt.Put(id, results)
+
 	err := send(&addr, *p)
 	if err != nil {
 		return nil, err
 	}
-
-	results := make(chan Result)
-	u.fnt.Put(id, results)
 
 	return results, nil
 }
@@ -223,13 +223,13 @@ func (u *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan Result, er
 		Payload:    &packet.Packet_FindValue{FindValue: payload},
 	}
 
+	results := make(chan Result)
+	u.fvt.Put(id, results)
+
 	err := send(&addr, *p)
 	if err != nil {
 		return nil, err
 	}
-
-	results := make(chan Result)
-	u.fvt.Put(id, results)
 
 	return results, nil
 }
@@ -372,6 +372,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 			Key:       key,
 			value:     p.GetValue().Value,
 		}
+		close(ch)
 
 		u.fvt.Remove(sessionID)
 
@@ -395,13 +396,14 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 
 		ch := u.fnt.Get(sessionID)
 		if ch == nil {
-			log.Println("Channel not found in table")
+			log.Printf("Channel with ID: %x not found in table\n", sessionID)
 			return
 		}
 
 		ch <- &FindNodesResult{
 			closest: closest,
 		}
+		close(ch)
 
 		u.fvt.Remove(sessionID)
 
@@ -465,6 +467,9 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 			},
 			Challenge: p.GetPong().GetChallenge(),
 		}
+		close(ch)
+
+		u.pt.Remove(sessionID)
 
 	case *packet.Packet_FindNode:
 		var sessionID SessionID
