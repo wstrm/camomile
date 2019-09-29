@@ -153,6 +153,7 @@ func (net *udpNetwork) SendNodes(closets []route.Contact, sessionID network.Sess
 func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error {
 	return nil
 }
+func (net *udpNetwork) StoreRequestCh() chan *network.StoreRequest         { return nil }
 func (net *udpNetwork) FindNodesRequestCh() chan *network.FindNodesRequest { return nil }
 func (net *udpNetwork) FindValueRequestCh() chan *network.FindValueRequest { return nil }
 func (net *udpNetwork) PongRequestCh() chan *network.PongRequest           { return nil }
