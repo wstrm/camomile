@@ -117,11 +117,4 @@ func main() {
 		}
 		exit(client, id)
 	}
-
-	// Debug
-	fmt.Println("Address: ", *addressFlag)
-	fmt.Println("Put: ", *putFlag)
-	fmt.Println("Get: ", *getFlag)
-	fmt.Println("Ping:", *pingFlag)
-	fmt.Println("Exit: ", *exitFlag)
 }
