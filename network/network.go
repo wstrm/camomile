@@ -418,10 +418,8 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 	case *packet.Packet_Ping:
 		var sessionID SessionID
 		var senderID node.ID
-		var challenge []byte
 		copy(senderID[:], p.GetSenderId())
 		copy(sessionID[:], p.GetSessionId())
-		copy(challenge, p.GetPing().GetChallenge())
 
 		u.pr <- &PongRequest{
 			From: route.Contact{
@@ -432,7 +430,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 				},
 			},
 			SessionID: sessionID,
-			Challenge: challenge,
+			Challenge: p.GetPing().GetChallenge(),
 		}
 
 	case *packet.Packet_Pong:
@@ -455,7 +453,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 					Port: int(p.GetSenderPort()),
 				},
 			},
-			Challenge: p.GetPong().Challenge,
+			Challenge: p.GetPong().GetChallenge(),
 		}
 
 	case *packet.Packet_FindNode:
