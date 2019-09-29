@@ -49,7 +49,7 @@ func get(c *rpc.Client, key store.Key) {
 
 func ping(c *rpc.Client, id node.ID) {
 	ping := ctl.Ping{NodeID: id}
-	var reply bool
+	var reply []byte
 
 	// The RPC call
 	err := c.Call("API.Ping", ping, &reply)
@@ -57,10 +57,7 @@ func ping(c *rpc.Client, id node.ID) {
 		log.Fatal("Ping error:", err)
 	}
 
-	// Debug (reply)
-	if reply {
-		fmt.Println("RPC successful")
-	}
+	fmt.Println("Ping response: ", reply)
 }
 
 func exit(c *rpc.Client, id node.ID) {
