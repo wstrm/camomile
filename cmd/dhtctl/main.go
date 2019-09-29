@@ -11,67 +11,60 @@ import (
 	"github.com/optmzr/d7024e-dht/store"
 )
 
-func put(c *rpc.Client, val string) {
+func put(c *rpc.Client, value string) {
 	put := ctl.Put{
-		Val: val,
+		Value: value,
 	}
-	var reply bool
+	var key store.Key
 
 	// The RPC call
-	err := c.Call("API.Put", put, &reply)
+	err := c.Call("API.Put", put, &key)
 	if err != nil {
 		log.Fatal("Put error:", err)
 	}
 
-	// Debug (reply)
-	if reply {
-		fmt.Println("RPC successful")
-	}
+	log.Printf("Hash: %v\n", key)
 }
 
 func get(c *rpc.Client, key store.Key) {
 	get := ctl.Get{
 		Key: key,
 	}
-	var reply bool
+	var value string
 
 	// The RPC call
-	err := c.Call("API.Get", get, &reply)
+	err := c.Call("API.Get", get, &value)
 	if err != nil {
-		log.Fatal("Get error:", err)
+		log.Fatalln("Get error:", err)
 	}
 
-	// Debug (reply)
-	if reply {
-		fmt.Println("RPC successful")
-	}
+	log.Printf("Value: %s\n", value)
 }
 
 func ping(c *rpc.Client, id node.ID) {
 	ping := ctl.Ping{NodeID: id}
-	var reply []byte
+	var challenge []byte
 
 	// The RPC call
-	err := c.Call("API.Ping", ping, &reply)
+	err := c.Call("API.Ping", ping, &challenge)
 	if err != nil {
-		log.Fatal("Ping error:", err)
+		log.Fatalln("Ping error:", err)
 	}
 
-	fmt.Println("Ping response: ", reply)
+	fmt.Printf("Ping response: %x\n", challenge)
 }
 
-func exit(c *rpc.Client, id node.ID) {
-	var reply bool
+func exit(c *rpc.Client) {
+	var ok bool
 
 	// The RPC call
-	err := c.Call("API.Exit", nil, &reply)
+	err := c.Call("API.Exit", ctl.Exit{}, &ok)
 	if err != nil {
-		log.Fatal("Ping error:", err)
+		log.Fatalf("Exit error: %v\n", err)
 	}
 
-	// Debug (reply)
-	if reply {
-		fmt.Println("RPC successful")
+	if ok {
+		fmt.Println("Node terminated")
 	}
 }
 
@@ -81,7 +74,7 @@ func main() {
 	var putFlag = flag.String("put", "", "put value to store")
 	var getFlag = flag.String("get", "", "key of the value to get")
 	var pingFlag = flag.String("ping", "", "ID of the node to ping")
-	var exitFlag = flag.String("exit", "", "ID of the node to terminate")
+	var exitFlag = flag.Bool("exit", false, "Terminate the node")
 
 	// Parse input
 	flag.Parse()
@@ -110,11 +103,7 @@ func main() {
 		}
 		ping(client, id)
 	}
-	if *exitFlag != "" {
-		id, err := node.IDFromString(*exitFlag)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		exit(client, id)
+	if *exitFlag {
+		exit(client)
 	}
 }
