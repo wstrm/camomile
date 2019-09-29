@@ -31,10 +31,10 @@ func NewAPI(dht *dht.DHT) *API {
 	return &API{dht: dht}
 }
 
-func (a *API) Ping(ping Ping, reply *bool) error {
-	*reply = true
-	return nil
-	// TODO: Coupling with DHT.
+func (a *API) Ping(ping Ping, reply *[]byte) (err error) {
+	log.Printf("Ping: %s\n", ping.NodeID)
+	*reply, err = a.dht.Ping(ping.NodeID)
+	return
 }
 
 func (a *API) Put(put Put, reply *store.Key) (err error) {

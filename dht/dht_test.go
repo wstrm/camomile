@@ -140,7 +140,7 @@ func (net *udpNetwork) FindValue(key store.Key, address net.UDPAddr) (chan netwo
 	return ch, nil
 }
 
-func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, error) { return nil, nil }
+func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, []byte, error) { return nil, nil, nil }
 func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
