@@ -112,7 +112,7 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 	if bytes.Equal(challenge, response.Challenge) {
 		return response.Challenge, nil
 	}
-	return nil, fmt.Errorf("challenge missmatch")
+	return nil, fmt.Errorf("challenge mismatch")
 }
 
 func (dht *DHT) pongRequestHandler() {
