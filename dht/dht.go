@@ -12,13 +12,17 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-const α = 3  // Degree of parallelism.
-const k = 20 // Bucket size.
+const α = 3              // Degree of parallelism.
+const k = 20             // Bucket size.
+const tExpire = 86410    // Time after which a key/value pair expires (TTL).
+const tReplicate = 3600  // Interval between Kademlia replication events.
+const tRepublish = 86400 // Time after which the original publisher must republish a key/value pair.
 
 type DHT struct {
 	rt *route.Table
 	nw network.Network
 	me route.Contact
+	db *store.Database
 }
 
 func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT, err error) {
@@ -28,6 +32,8 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 		err = fmt.Errorf("cannot initialize routing table: %w", err)
 		return
 	}
+
+	dht.db = store.NewDatabase(tExpire, tReplicate, tRepublish)
 
 	dht.nw = nw
 	dht.me = me
@@ -41,6 +47,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	}(dht, me)
 
 	go dht.findNodesRequestHandler()
+	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
 
 	return
@@ -62,6 +69,19 @@ func (dht *DHT) findNodesRequestHandler() {
 		if err != nil {
 			log.Println(err)
 		}
+	}
+}
+
+func (dht *DHT) storeRequestHandler() {
+	for {
+		request := <-dht.nw.StoreRequestCh()
+
+		log.Printf("Store value request from: %v", request.From.NodeID)
+
+		// Add node so it is moved to the top of its bucket in the routing table.
+		dht.rt.Add(request.From)
+
+		dht.db.AddItem(request.Value, request.From.NodeID)
 	}
 }
 
@@ -105,7 +125,7 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 		return nil, fmt.Errorf("not able to send ping request to %v: %w", contact.NodeID, err)
 	}
 
-	response := <- resultCh
+	response := <-resultCh
 
 	dht.rt.Add(response.From)
 
@@ -117,7 +137,7 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 
 func (dht *DHT) pongRequestHandler() {
 	for {
-		request := <- dht.nw.PongRequestCh()
+		request := <-dht.nw.PongRequestCh()
 
 		log.Printf("Pong request from: %v (%x)", request.From.NodeID, request.Challenge)
 

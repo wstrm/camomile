@@ -32,6 +32,7 @@ type udpNetwork struct {
 	fnr   chan *FindNodesRequest
 	fvr   chan *FindValueRequest
 	pr    chan *PongRequest
+	sr    chan *StoreRequest
 	ready chan struct{}
 }
 
@@ -44,6 +45,11 @@ type PongRequest struct {
 	From      route.Contact
 	SessionID SessionID
 	Challenge []byte
+}
+
+type StoreRequest struct {
+	Value string
+	From  route.Contact
 }
 
 type FindNodesResult struct {
@@ -67,6 +73,7 @@ type Network interface {
 	SendNodes(closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error
 	FindNodesRequestCh() chan *FindNodesRequest
 	FindValueRequestCh() chan *FindValueRequest
+	StoreRequestCh() chan *StoreRequest
 	PongRequestCh() chan *PongRequest
 	ReadyCh() chan struct{}
 	Listen() error
@@ -110,12 +117,14 @@ func NewUDPNetwork(me route.Contact) (Network, error) {
 
 	n.fnr = make(chan *FindNodesRequest)
 	n.fvr = make(chan *FindValueRequest)
+	n.sr = make(chan *StoreRequest)
 	n.pr = make(chan *PongRequest)
 	n.ready = make(chan struct{})
 
 	return n, nil
 }
 
+func (u *udpNetwork) StoreRequestCh() chan *StoreRequest         { return u.sr }
 func (u *udpNetwork) FindNodesRequestCh() chan *FindNodesRequest { return u.fnr }
 func (u *udpNetwork) FindValueRequestCh() chan *FindValueRequest { return u.fvr }
 func (u *udpNetwork) PongRequestCh() chan *PongRequest           { return u.pr }
@@ -468,6 +477,22 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		u.fnr <- &FindNodesRequest{
 			SessionID: sessionID,
 			Target:    targetID,
+			From: route.Contact{
+				NodeID: senderID,
+				Address: net.UDPAddr{
+					IP:   addr.IP,
+					Port: int(p.GetSenderPort()),
+				},
+			},
+		}
+
+	case *packet.Packet_Store:
+		var senderID node.ID
+		copy(senderID[:], p.GetSenderId())
+		value := p.GetStore().Value
+
+		u.sr <- &StoreRequest{
+			Value: value,
 			From: route.Contact{
 				NodeID: senderID,
 				Address: net.UDPAddr{

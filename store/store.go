@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ type Database struct {
 
 // NewDatabase instantiates a new database object with the given time constants, returns a Database pointer and a channel.
 // Spins up the two governing handlers as go routines, responsible for maintaining the database.
-func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) (*Database, chan localItem) {
+func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
 	db := new(Database)
 
 	db.tExpire = tExpire
@@ -75,7 +76,7 @@ func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) (*Database, chan
 	go db.itemHandler()
 	go db.republishHandler()
 
-	return db, db.ch
+	return db
 }
 
 // setReplicate, a set function for the replication interval time of the database.
@@ -92,6 +93,11 @@ func (db *Database) getReplicate() time.Time {
 	db.replicate.RUnlock()
 
 	return time
+}
+
+// LocalItemCh returns the database communication channel.
+func (db *Database) LocalItemCh() chan localItem {
+	return db.ch
 }
 
 // truncate truncates supplied string to a maximum of a 1000 characters. Returns a string.
@@ -120,6 +126,8 @@ func (db *Database) AddItem(value string, origPub node.ID) {
 	db.remoteItems.Lock()
 	db.remoteItems.m[key] = newItem
 	db.remoteItems.Unlock()
+
+	log.Printf("Stored:\n\tValue: %s\n\tHash: %v", value, key)
 }
 
 // AddLocalItem adds an value to the local item database that this node has requested to be stored on the kademlia network.
