@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 
@@ -40,6 +41,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	}(dht, me)
 
 	go dht.findNodesRequestHandler()
+	go dht.pongRequestHandler()
 
 	return
 }
@@ -85,6 +87,47 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 
 	logAcquaintedWith(contacts)
 	return
+}
+
+// Ping pings a specified camomileID
+func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
+	sl := dht.rt.NClosest(target, 1)
+
+	contacts := sl.SortedContacts()
+	if !(contacts.Len() > 0 && contacts[0].NodeID.Equal(target)) {
+		return nil, fmt.Errorf("ping: could not find target node (%v)", target)
+	}
+
+	contact := contacts[0]
+
+	resultCh, challenge, err := dht.nw.Ping(contact.Address)
+	if err != nil {
+		return nil, fmt.Errorf("not able to send ping request to %v: %w", contact.NodeID, err)
+	}
+
+	response := <- resultCh
+
+	dht.rt.Add(response.From)
+
+	if bytes.Equal(challenge, response.Challenge) {
+		return response.Challenge, nil
+	}
+	return nil, fmt.Errorf("challenge mismatch")
+}
+
+func (dht *DHT) pongRequestHandler() {
+	for {
+		request := <- dht.nw.PongRequestCh()
+
+		log.Printf("Pong request from: %v (%x)", request.From.NodeID, request.Challenge)
+
+		dht.rt.Add(request.From)
+
+		err := dht.nw.Pong(request.Challenge, request.SessionID, request.From.Address)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 type awaitChannel struct {
