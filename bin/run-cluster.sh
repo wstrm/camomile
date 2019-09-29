@@ -11,7 +11,8 @@ networkname="camomilenet"
 networkprefix="172.22.0"
 port="8118"
 
-docker network create --subnet="$networkprefix.0/16" "$networkname" 2>&1
+docker build . -t dhtnode:latest
+docker network create --subnet="$networkprefix.0/16" "$networkname" >/dev/null
 
 set -e
 
