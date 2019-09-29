@@ -97,7 +97,7 @@ func TestPingPongShow_correctChallengeReply(t *testing.T) {
 
 	correctChallenge := []byte{254}
 
-	res, err := n.Ping(*addr)
+	res, _, err := n.Ping(*addr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -122,7 +122,7 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 	correctChallenge := []byte{254}
 	wrongChallenge := []byte{0}
 
-	res, err := n.Ping(*addr)
+	res, _, err := n.Ping(*addr)
 	if err != nil {
 		t.Error(err)
 	}
