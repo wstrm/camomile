@@ -491,12 +491,13 @@ func generateID() (id SessionID) {
 	return id
 }
 
-func generateChallenge() (c []byte) {
+func generateChallenge() []byte {
+	c := make([]byte, Size256)
 	_, err := rng(c)
 	if err != nil {
 		panic(err)
 	}
-	return
+	return c
 }
 
 func send(addr *net.UDPAddr, packet packet.Packet) error {
