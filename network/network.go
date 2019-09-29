@@ -58,7 +58,7 @@ type FindValueResult struct {
 }
 
 type Network interface {
-	Ping(addr net.UDPAddr) (chan *PingResult, error)
+	Ping(addr net.UDPAddr) (chan *PingResult, []byte, error)
 	Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error
 	FindNodes(target node.ID, addr net.UDPAddr) (chan Result, error)
 	Store(key store.Key, value string, addr net.UDPAddr) error
@@ -121,11 +121,12 @@ func (u *udpNetwork) FindValueRequestCh() chan *FindValueRequest { return u.fvr 
 func (u *udpNetwork) PongRequestCh() chan *PongRequest           { return u.pr }
 func (u *udpNetwork) ReadyCh() chan struct{}                     { return u.ready }
 
-func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, error) {
+func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, []byte, error) {
 	id := generateID()
+	c := generateChallenge()
 
 	payload := &packet.Ping{
-		Challenge: generateChallenge(),
+		Challenge: c,
 	}
 	p := &packet.Packet{
 		SessionId:  id[:],
@@ -136,13 +137,13 @@ func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, error) {
 
 	err := send(&addr, *p)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	results := make(chan *PingResult)
 	u.pt.Put(id, results)
 
-	return results, nil
+	return results, c, nil
 }
 
 func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error {
