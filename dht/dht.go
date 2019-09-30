@@ -311,6 +311,11 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 		return
 	}
 
+	// Do not replicate the value over more than k nodes.
+	if len(contacts) > k {
+		contacts = contacts[:k]
+	}
+
 	var stored []route.Contact
 	for _, contact := range contacts {
 		if e := dht.nw.Store(hash, value, contact.Address); e != nil {
