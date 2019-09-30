@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
@@ -12,11 +13,12 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-const α = 3              // Degree of parallelism.
-const k = 20             // Bucket size.
-const tExpire = 86410    // Time after which a key/value pair expires (TTL).
-const tReplicate = 3600  // Interval between Kademlia replication events.
-const tRepublish = 86400 // Time after which the original publisher must republish a key/value pair.
+const α = 3  // Degree of parallelism.
+const k = 20 // Bucket size.
+
+const tExpire = 86410 * time.Second    // Time after which a key/value pair expires (TTL).
+const tReplicate = 3600 * time.Second  // Interval between Kademlia replication events.
+const tRepublish = 86400 * time.Second // Time after which the original publisher must republish a key/value pair.
 
 type DHT struct {
 	rt *route.Table
@@ -47,10 +49,41 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	}(dht, me)
 
 	go dht.findNodesRequestHandler()
+	go dht.findValueRequestHandler()
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
 
 	return
+}
+
+func (dht *DHT) findValueRequestHandler() {
+	for {
+		request := <-dht.nw.FindValueRequestCh()
+
+		log.Printf("Find value request from: %v", request.From.NodeID)
+
+		// Add node so it is moved to the top of its bucket in the routing table.
+		dht.rt.Add(request.From)
+
+		var closest []route.Contact
+		target := node.ID(request.Key)
+
+		// Try to fetch the value from the local storage.
+		item, err := dht.db.GetItem(request.Key)
+		if err != nil {
+			// No luck.
+			// Fetch this nodes contacts that are closest to the requested key.
+			closest = dht.rt.NClosest(target, k).SortedContacts()
+		} else {
+			log.Printf("Found value: %s", item.Value)
+		}
+
+		err = dht.nw.SendValue(request.Key, item.Value, closest,
+			request.SessionID, request.From.Address)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func (dht *DHT) findNodesRequestHandler() {
@@ -105,7 +138,7 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 		return
 	}
 
-	logAcquaintedWith(contacts)
+	logAcquaintedWith(contacts...)
 	return
 }
 
@@ -288,7 +321,7 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 	}
 
 	if len(stored) > 0 {
-		logStoredAt(hash, stored)
+		logStoredAt(hash, stored...)
 	}
 
 	return
@@ -296,24 +329,44 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 
 func (dht *DHT) iterativeFindValue(hash store.Key) (value string, err error) {
 	call := NewFindValueCall(hash)
-	if _, err = dht.walk(call); err == nil {
-		value = call.value
+	closest, err := dht.walk(call)
+	if err != nil {
+		return
 	}
+
+	if call.value != "" {
+		value = call.value
+	} else {
+		err = fmt.Errorf("Couldn't find any value with the hash: %v", hash)
+		return
+	}
+
+	// Store at the closest node that did not return any value.
+	if len(closest) > 0 {
+		first := closest[0]
+		if e := dht.nw.Store(hash, value, first.Address); e != nil {
+			log.Printf("Failed to store at %s (%s): %v",
+				first.NodeID.String(), first.Address.String(), e)
+		} else {
+			logStoredAt(hash, first)
+		}
+	}
+
 	return
 }
 
-func logStoredAt(hash store.Key, contacts []route.Contact) {
+func logStoredAt(hash store.Key, contacts ...route.Contact) {
 	log.Printf("Stored value with hash %v at %d nodes:\n",
 		hash.String(), len(contacts))
-	logContacts(contacts)
+	logContacts(contacts...)
 }
 
-func logAcquaintedWith(contacts []route.Contact) {
+func logAcquaintedWith(contacts ...route.Contact) {
 	log.Printf("Acquainted with %d nodes:\n", len(contacts))
-	logContacts(contacts)
+	logContacts(contacts...)
 }
 
-func logContacts(contacts []route.Contact) {
+func logContacts(contacts ...route.Contact) {
 	for _, contact := range contacts {
 		log.Println("\t", contact.NodeID.String())
 	}

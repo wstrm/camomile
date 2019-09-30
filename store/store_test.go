@@ -26,8 +26,8 @@ func TestItemsAdd(t *testing.T) {
 		t.Errorf("did not find entry in hash table for: %x", trueHash)
 	}
 
-	if !(testVal == storedTestItem.value) {
-		t.Errorf("value of item does not match original value.\nExpected: %x\nGot: %x", testVal, storedTestItem.value)
+	if !(testVal == storedTestItem.Value) {
+		t.Errorf("value of item does not match original value.\nExpected: %x\nGot: %x", testVal, storedTestItem.Value)
 	}
 
 	if !(testNodeID == storedTestItem.origPub) {
@@ -236,7 +236,7 @@ func TestRepublisher(t *testing.T) {
 	db.AddLocalItem(trueHash, testVal)
 
 	republishedItem := <-db.ch
-	if republishedItem.value != testVal {
+	if republishedItem.Value != testVal {
 		t.Errorf("LocalItem did not get republished.")
 	}
 }
@@ -250,7 +250,7 @@ func TestReplication(t *testing.T) {
 	db.AddLocalItem(trueHash, testVal)
 
 	replicatedItem := <-db.ch
-	if replicatedItem.value != testVal {
+	if replicatedItem.Value != testVal {
 		t.Errorf("Key did not get replicated")
 	}
 }

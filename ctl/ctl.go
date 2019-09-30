@@ -3,6 +3,7 @@ package ctl
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/optmzr/d7024e-dht/dht"
 	"github.com/optmzr/d7024e-dht/node"
@@ -18,7 +19,7 @@ type Ping struct {
 }
 
 type Put struct {
-	Val string
+	Value string
 }
 
 type Get struct {
@@ -38,8 +39,8 @@ func (a *API) Ping(ping Ping, reply *[]byte) (err error) {
 }
 
 func (a *API) Put(put Put, reply *store.Key) (err error) {
-	log.Printf("Put: %s\n", put.Val)
-	*reply, err = a.dht.Put(put.Val)
+	log.Printf("Put: %s\n", put.Value)
+	*reply, err = a.dht.Put(put.Value)
 	return
 }
 
@@ -49,9 +50,15 @@ func (a *API) Get(get Get, reply *string) (err error) {
 	return
 }
 
-func (a *API) Exit(exit Exit, reply *bool) error {
-	log.Println("Exit")
-	*reply = true
-	defer os.Exit(0)
+func (a *API) Exit(exit Exit, ok *bool) error {
+	log.Println("Terminating node in 5 seconds...")
+
+	*ok = true
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		os.Exit(0)
+	}()
+
 	return nil
 }

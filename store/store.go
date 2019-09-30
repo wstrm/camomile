@@ -17,7 +17,7 @@ type Key node.ID
 // item is an item stored by the kademlia network on this node.
 // This contains timers that decide the retention of the object along with the stored value and identifier of the node that made the store request to the network initially.
 type item struct {
-	value     string
+	Value     string
 	expire    time.Time
 	republish time.Time
 	origPub   node.ID
@@ -25,7 +25,7 @@ type item struct {
 
 // localItem contains a timer and the value that this node has stored on the kademlia network.
 type localItem struct {
-	value     string
+	Value     string
 	repubTime time.Time
 }
 
@@ -118,7 +118,7 @@ func (db *Database) AddItem(value string, origPub node.ID) {
 
 	newItem := item{}
 
-	newItem.value = truncate(value)
+	newItem.Value = truncate(value)
 	newItem.expire = expire
 	newItem.republish = republish
 	newItem.origPub = origPub
@@ -136,7 +136,7 @@ func (db *Database) AddLocalItem(key Key, value string) {
 
 	newLocalItem := localItem{}
 
-	newLocalItem.value = value
+	newLocalItem.Value = value
 	newLocalItem.repubTime = t.Add(db.tRepublish)
 
 	db.localItems.Lock()
@@ -151,7 +151,7 @@ func (db *Database) GetItem(key Key) (reqItem item, err error) {
 	db.remoteItems.RUnlock()
 
 	if !found {
-		err = fmt.Errorf("store: GetItem, no item matching key: %x", key)
+		err = fmt.Errorf("store: GetItem, no item matching key: %v", key)
 		return
 	}
 
@@ -166,7 +166,7 @@ func (db *Database) GetLocalItem(key Key) (reqLocalItem localItem, err error) {
 	db.localItems.RUnlock()
 
 	if !found {
-		err = fmt.Errorf("store: GetLocalItem, no localItem matching key: %x", key)
+		err = fmt.Errorf("store: GetLocalItem, no localItem matching key: %v", key)
 		return
 	}
 
