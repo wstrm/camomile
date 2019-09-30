@@ -233,6 +233,7 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 
 			ch, err := call.Do(nw, contact.Address)
 			if err != nil {
+				log.Println(err)
 				sl.Remove(contact)
 			} else {
 				// Mark as contacted.
@@ -330,6 +331,7 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 func (dht *DHT) iterativeFindValue(hash store.Key) (value string, err error) {
 	call := NewFindValueCall(hash)
 	closest, err := dht.walk(call)
+
 	if err != nil {
 		return
 	}

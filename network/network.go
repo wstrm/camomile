@@ -242,7 +242,7 @@ func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Cont
 
 	for _, c := range contacts {
 		p := &packet.NodeInfo{
-			NodeId: c.NodeID[:],
+			NodeId: c.NodeID.Bytes(),
 			Ip:     c.Address.IP,
 			Port:   uint32(c.Address.Port),
 		}
@@ -275,13 +275,10 @@ func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Cont
 
 func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error {
 	var nodes []*packet.NodeInfo
-	var contacts []route.Contact
 
-	contacts = append(contacts, closest...)
-
-	for _, c := range contacts {
+	for _, c := range closest {
 		p := &packet.NodeInfo{
-			NodeId: c.NodeID[:],
+			NodeId: c.NodeID.Bytes(),
 			Ip:     c.Address.IP,
 			Port:   uint32(c.Address.Port),
 		}
