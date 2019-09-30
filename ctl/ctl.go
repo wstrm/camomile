@@ -28,6 +28,11 @@ type Get struct {
 
 type Exit struct{}
 
+type GetReply struct {
+	Value string
+	SenderID node.ID
+}
+
 func NewAPI(dht *dht.DHT) *API {
 	return &API{dht: dht}
 }
@@ -44,9 +49,9 @@ func (a *API) Put(put Put, reply *store.Key) (err error) {
 	return
 }
 
-func (a *API) Get(get Get, reply *string) (err error) {
+func (a *API) Get(get Get, reply *GetReply) (err error) {
 	log.Printf("Get: %s\n", get.Key)
-	*reply, err = a.dht.Get(get.Key)
+	reply.Value, reply.SenderID, err = a.dht.Get(get.Key)
 	return
 }
 
