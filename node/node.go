@@ -57,9 +57,11 @@ func IDFromBytes(b []byte) (id ID) {
 	return
 }
 
-// Bytes returns the bytes slice without a fixed size for a node ID.
+// Bytes returns a copy of the bytes slice without a fixed size for a node ID.
 func (n ID) Bytes() []byte {
-	return n[:]
+	b := make([]byte, IDBytesLength)
+	copy(b, n[:])
+	return b
 }
 
 // Equal compares the node ID with another.
