@@ -30,7 +30,7 @@ func get(c *rpc.Client, key store.Key) {
 	get := ctl.Get{
 		Key: key,
 	}
-	var value string
+	var value ctl.GetReply
 
 	// The RPC call
 	err := c.Call("API.Get", get, &value)
@@ -38,7 +38,7 @@ func get(c *rpc.Client, key store.Key) {
 		log.Fatalln("Get error:", err)
 	}
 
-	log.Printf("Value: %s\n", value)
+	log.Printf("Value: %s (from: %s)", value.Value, value.SenderID.String()[:6])
 }
 
 func ping(c *rpc.Client, id node.ID) {
