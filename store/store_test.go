@@ -201,7 +201,7 @@ func TestItemHandler(t *testing.T) {
 	timer := time.NewTimer(time.Second * 3)
 	<-timer.C
 
-	item, err := db.GetItem(trueHash)
+	_, err := db.GetItem(trueHash)
 
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
