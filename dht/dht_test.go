@@ -205,7 +205,7 @@ func TestGet(t *testing.T) {
 		134,
 	}
 
-	value, err := d.Get(hash)
+	value, _, err := d.Get(hash)
 	if err != nil {
 		t.Errorf("unexpected error: %w", err)
 	}

@@ -119,8 +119,8 @@ func (dht *DHT) storeRequestHandler() {
 }
 
 // Get retrieves the value for a specified key from the network.
-func (dht *DHT) Get(hash store.Key) (value string, err error) {
-	value, err = dht.iterativeFindValue(hash)
+func (dht *DHT) Get(hash store.Key) (value string, sender node.ID, err error) {
+	value, sender, err = dht.iterativeFindValue(hash)
 	return
 }
 
@@ -269,7 +269,7 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 				sl.Add(result.Closest()...)
 
 				// Update callee with intermediate results.
-				stop := call.Result(result)
+				stop := call.Result(result, callee)
 				if stop {
 					break // Callee requested that the walk must be stopped.
 				}
@@ -311,6 +311,11 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 		return
 	}
 
+	// Do not replicate the value over more than k nodes.
+	if len(contacts) > k {
+		contacts = contacts[:k]
+	}
+
 	var stored []route.Contact
 	for _, contact := range contacts {
 		if e := dht.nw.Store(hash, value, contact.Address); e != nil {
@@ -328,7 +333,7 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 	return
 }
 
-func (dht *DHT) iterativeFindValue(hash store.Key) (value string, err error) {
+func (dht *DHT) iterativeFindValue(hash store.Key) (value string, sender node.ID, err error) {
 	call := NewFindValueCall(hash)
 	closest, err := dht.walk(call)
 
@@ -338,6 +343,7 @@ func (dht *DHT) iterativeFindValue(hash store.Key) (value string, err error) {
 
 	if call.value != "" {
 		value = call.value
+		sender = call.sender
 	} else {
 		err = fmt.Errorf("Couldn't find any value with the hash: %v", hash)
 		return
