@@ -26,6 +26,7 @@ func init() {
 }
 
 type udpNetwork struct {
+	conn  *net.UDPConn
 	me    route.Contact
 	fnt   *table
 	fvt   *table
@@ -139,13 +140,12 @@ func (u *udpNetwork) Ping(addr net.UDPAddr) (chan *PingResult, []byte, error) {
 		Challenge: c,
 	}
 	p := &packet.Packet{
-		SessionId:  id[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_Ping{Ping: payload},
+		SessionId: id[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_Ping{Ping: payload},
 	}
 
-	err := send(&addr, *p)
+	err := u.send(addr, *p)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -161,13 +161,12 @@ func (u *udpNetwork) Pong(challenge []byte, sessionID SessionID, addr net.UDPAdd
 		Challenge: challenge,
 	}
 	p := &packet.Packet{
-		SessionId:  sessionID[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_Pong{Pong: payload},
+		SessionId: sessionID[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_Pong{Pong: payload},
 	}
 
-	return send(&addr, *p)
+	return u.send(addr, *p)
 }
 
 func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan Result, error) {
@@ -177,16 +176,15 @@ func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan Result, e
 		NodeId: target[:],
 	}
 	p := &packet.Packet{
-		SessionId:  id[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_FindNode{FindNode: payload},
+		SessionId: id[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_FindNode{FindNode: payload},
 	}
 
 	results := make(chan Result)
 	u.fnt.Put(id, results)
 
-	err := send(&addr, *p)
+	err := u.send(addr, *p)
 	if err != nil {
 		return nil, err
 	}
@@ -202,13 +200,12 @@ func (u *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error 
 		Value: value,
 	}
 	p := &packet.Packet{
-		SessionId:  id[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_Store{Store: payload},
+		SessionId: id[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_Store{Store: payload},
 	}
 
-	return send(&addr, *p)
+	return u.send(addr, *p)
 }
 
 func (u *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan Result, error) {
@@ -218,16 +215,15 @@ func (u *udpNetwork) FindValue(key store.Key, addr net.UDPAddr) (chan Result, er
 		Key: key[:],
 	}
 	p := &packet.Packet{
-		SessionId:  id[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_FindValue{FindValue: payload},
+		SessionId: id[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_FindValue{FindValue: payload},
 	}
 
 	results := make(chan Result)
 	u.fvt.Put(id, results)
 
-	err := send(&addr, *p)
+	err := u.send(addr, *p)
 	if err != nil {
 		return nil, err
 	}
@@ -260,13 +256,12 @@ func (u *udpNetwork) SendValue(key store.Key, value string, closest []route.Cont
 		NodeList: internalPayload,
 	}
 	p := &packet.Packet{
-		SessionId:  sessionID[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_Value{Value: payload},
+		SessionId: sessionID[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_Value{Value: payload},
 	}
 
-	err := send(&addr, *p)
+	err := u.send(addr, *p)
 	if err != nil {
 		return err
 	}
@@ -291,13 +286,12 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 	}
 
 	p := &packet.Packet{
-		SessionId:  sessionID[:],
-		SenderId:   u.me.NodeID.Bytes(),
-		SenderPort: uint32(u.me.Address.Port),
-		Payload:    &packet.Packet_NodeList{NodeList: payload},
+		SessionId: sessionID[:],
+		SenderId:  u.me.NodeID.Bytes(),
+		Payload:   &packet.Packet_NodeList{NodeList: payload},
 	}
 
-	err := send(&addr, *p)
+	err := u.send(addr, *p)
 	if err != nil {
 		return err
 	}
@@ -305,22 +299,25 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 	return nil
 }
 
-func (u *udpNetwork) Listen() error {
+func (u *udpNetwork) Listen() (err error) {
 	log.Info().
 		Msgf("Listening for UDP packets on: %s", u.me.Address.String())
 
-	conn, err := net.ListenUDP("udp", &u.me.Address)
+	u.conn, err = net.ListenUDP("udp", &u.me.Address)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer u.conn.Close()
 
 	// Notify everyone that we're ready.
 	u.ready <- struct{}{}
 
+	// Reusable buffer, can be used between every read loop as it will be copied
+	// before sending the data to the packet handler.
+	buffer := make([]byte, 65535)
+
 	for {
-		data := make([]byte, 1500)
-		n, addr, err := conn.ReadFromUDP(data)
+		n, addr, err := u.conn.ReadFromUDP(buffer)
 
 		log.Debug().
 			Msgf("Received packet from: %v", addr)
@@ -332,8 +329,11 @@ func (u *udpNetwork) Listen() error {
 			continue
 		}
 
-		b := data[:n]
-		go u.handlePacket(b, *addr)
+		// Make a copy of the current data in the buffer.
+		rawPacket := make([]byte, n)
+		copy(rawPacket, buffer)
+
+		go u.handlePacket(rawPacket, *addr)
 	}
 }
 
@@ -433,7 +433,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 				NodeID: senderID,
 				Address: net.UDPAddr{
 					IP:   addr.IP,
-					Port: int(p.GetSenderPort()),
+					Port: addr.Port,
 				},
 			},
 		}
@@ -449,7 +449,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 				NodeID: senderID,
 				Address: net.UDPAddr{
 					IP:   addr.IP,
-					Port: int(p.GetSenderPort()),
+					Port: addr.Port,
 				},
 			},
 			SessionID: sessionID,
@@ -473,7 +473,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 				NodeID: senderID,
 				Address: net.UDPAddr{
 					IP:   addr.IP,
-					Port: int(p.GetSenderPort()),
+					Port: addr.Port,
 				},
 			},
 			Challenge: p.GetPong().GetChallenge(),
@@ -496,7 +496,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 				NodeID: senderID,
 				Address: net.UDPAddr{
 					IP:   addr.IP,
-					Port: int(p.GetSenderPort()),
+					Port: addr.Port,
 				},
 			},
 		}
@@ -512,7 +512,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 				NodeID: senderID,
 				Address: net.UDPAddr{
 					IP:   addr.IP,
-					Port: int(p.GetSenderPort()),
+					Port: addr.Port,
 				},
 			},
 		}
@@ -540,18 +540,12 @@ func generateChallenge() []byte {
 	return c
 }
 
-func send(addr *net.UDPAddr, packet packet.Packet) error {
-	conn, err := net.DialUDP("udp", nil, addr)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
+func (u *udpNetwork) send(addr net.UDPAddr, packet packet.Packet) error {
 	b, err := proto.Marshal(&packet)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Write(b)
+	_, err = u.conn.WriteTo(b, &addr)
 	if err != nil {
 		return err
 	}

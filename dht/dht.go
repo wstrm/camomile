@@ -14,8 +14,8 @@ import (
 	"github.com/optmzr/d7024e-dht/store"
 )
 
-const α = 3  // Degree of parallelism.
-const k = 20 // Bucket size.
+const α = 3                // Degree of parallelism.
+const k = route.BucketSize // Bucket size.
 
 const tExpire = 86410 * time.Second    // Time after which a key/value pair expires (TTL).
 const tReplicate = 3600 * time.Second  // Interval between Kademlia replication events.
@@ -238,6 +238,11 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 
 	// Contacts holds a sorted (slice) copy of the shortlist.
 	contacts := sl.SortedContacts()
+
+	if len(contacts) == 0 {
+		// No candidates found in the routing table.
+		return contacts, fmt.Errorf("empty routing table")
+	}
 
 	// Closest is the node that closest in distance to the target node ID.
 	closest := contacts[0]
