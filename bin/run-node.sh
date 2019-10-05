@@ -1,6 +1,4 @@
 #!/bin/sh
-set -euo
-
 menum=$1
 meid=$2
 meaddr=$3
