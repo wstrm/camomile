@@ -5,34 +5,17 @@ import (
 )
 
 func TestTableNodes(t *testing.T) {
-	table := newFindNodesTable()
+	table := newTable()
 
 	id := generateID()
 	ch := make(chan Result)
 
 	table.Put(id, ch)
 
-	c := table.Get(id)
-
-	go func() {
-		ch <- nil
-	}()
-
-	res := <-c
-	if res != nil {
-		t.Errorf("Expected: nil Got: %v", res)
+	c, ok := table.Get(id)
+	if !ok {
+		t.Error("expected channel, got nil")
 	}
-}
-
-func TestTableFindValue(t *testing.T) {
-	table := newFindValueTable()
-
-	id := generateID()
-	ch := make(chan Result)
-
-	table.Put(id, ch)
-
-	c := table.Get(id)
 
 	go func() {
 		ch <- nil
@@ -52,7 +35,10 @@ func TestTablePing(t *testing.T) {
 
 	table.Put(id, ch)
 
-	c := table.Get(id)
+	c, ok := table.Get(id)
+	if !ok {
+		t.Error("expected channel, got nil")
+	}
 
 	go func() {
 		ch <- nil

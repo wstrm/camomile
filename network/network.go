@@ -2,10 +2,11 @@ package network
 
 import (
 	"crypto/rand"
-	"log"
 	"net"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/rs/zerolog/log"
+
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/packet"
 	"github.com/optmzr/d7024e-dht/route"
@@ -26,8 +27,8 @@ func init() {
 
 type udpNetwork struct {
 	me    route.Contact
-	fnt   *findNodesTable
-	fvt   *findValueTable
+	fnt   *table
+	fvt   *table
 	pt    *pingTable
 	fnr   chan *FindNodesRequest
 	fvr   chan *FindValueRequest
@@ -113,7 +114,7 @@ type FindValueRequest struct {
 }
 
 func NewUDPNetwork(me route.Contact) (Network, error) {
-	n := &udpNetwork{me: me, fvt: newFindValueTable(), fnt: newFindNodesTable(), pt: newPingTable()}
+	n := &udpNetwork{me: me, fvt: newTable(), fnt: newTable(), pt: newPingTable()}
 
 	n.fnr = make(chan *FindNodesRequest)
 	n.fvr = make(chan *FindValueRequest)
@@ -305,7 +306,8 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 }
 
 func (u *udpNetwork) Listen() error {
-	log.Printf("Listening for UDP packets on port %s", u.me.Address.String())
+	log.Info().
+		Msgf("Listening for UDP packets on: %s", u.me.Address.String())
 
 	conn, err := net.ListenUDP("udp", &u.me.Address)
 	if err != nil {
@@ -319,20 +321,34 @@ func (u *udpNetwork) Listen() error {
 	for {
 		data := make([]byte, 1500)
 		n, addr, err := conn.ReadFromUDP(data)
-		log.Printf("Received packet from: %v", addr)
+
+		log.Debug().
+			Msgf("Received packet from: %v", addr)
+
 		if err != nil {
-			log.Fatalf("Error when reading from UDP from address %v: %s", addr.String(), err)
+			log.Error().Err(err).
+				Msgf("Error when reading from UDP from address %v: %s",
+					addr, err)
+			continue
 		}
+
 		b := data[:n]
 		go u.handlePacket(b, *addr)
 	}
+}
+
+func logChannelNotFound(id SessionID) {
+	log.Warn().
+		Msgf("Channel with ID: %x not found in table", id)
 }
 
 func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 	p := &packet.Packet{}
 	err := proto.Unmarshal(b, p)
 	if err != nil {
-		log.Println("Error unserializing packet", err)
+		log.Error().Err(err).
+			Msg("Error unserializing packet")
+
 		return
 	}
 
@@ -357,9 +373,9 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 			})
 		}
 
-		ch := u.fvt.Get(sessionID)
-		if ch == nil {
-			log.Println("Channel not found in table")
+		ch, ok := u.fvt.Get(sessionID)
+		if !ok {
+			logChannelNotFound(sessionID)
 			return
 		}
 
@@ -369,7 +385,6 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 			Key:       key,
 			value:     p.GetValue().Value,
 		}
-		close(ch)
 
 		u.fvt.Remove(sessionID)
 
@@ -391,18 +406,17 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 			})
 		}
 
-		ch := u.fnt.Get(sessionID)
-		if ch == nil {
-			log.Printf("Channel with ID: %x not found in table\n", sessionID)
+		ch, ok := u.fnt.Get(sessionID)
+		if !ok {
+			logChannelNotFound(sessionID)
 			return
 		}
 
 		ch <- &FindNodesResult{
 			closest: closest,
 		}
-		close(ch)
 
-		u.fvt.Remove(sessionID)
+		u.fnt.Remove(sessionID)
 
 	case *packet.Packet_FindValue:
 		var key store.Key
@@ -448,9 +462,9 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		copy(senderID[:], p.GetSenderId())
 		copy(sessionID[:], p.GetSessionId())
 
-		ch := u.pt.Get(sessionID)
-		if ch == nil {
-			log.Println("handlePackage: Channel not found in table")
+		ch, ok := u.pt.Get(sessionID)
+		if !ok {
+			logChannelNotFound(sessionID)
 			return
 		}
 
@@ -464,7 +478,6 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 			},
 			Challenge: p.GetPong().GetChallenge(),
 		}
-		close(ch)
 
 		u.pt.Remove(sessionID)
 
@@ -505,7 +518,8 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		}
 
 	default:
-		log.Println("Unhandled packet", p)
+		log.Debug().
+			Msgf("Unhandled packet: %v", p)
 	}
 }
 
@@ -529,7 +543,7 @@ func generateChallenge() []byte {
 func send(addr *net.UDPAddr, packet packet.Packet) error {
 	conn, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	defer conn.Close()
 

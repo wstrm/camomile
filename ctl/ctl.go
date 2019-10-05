@@ -1,9 +1,10 @@
 package ctl
 
 import (
-	"log"
 	"os"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/optmzr/d7024e-dht/dht"
 	"github.com/optmzr/d7024e-dht/node"
@@ -29,7 +30,7 @@ type Get struct {
 type Exit struct{}
 
 type GetReply struct {
-	Value string
+	Value    string
 	SenderID node.ID
 }
 
@@ -38,25 +39,25 @@ func NewAPI(dht *dht.DHT) *API {
 }
 
 func (a *API) Ping(ping Ping, reply *[]byte) (err error) {
-	log.Printf("Ping: %s\n", ping.NodeID)
+	log.Info().Msgf("Ping: %s", ping.NodeID)
 	*reply, err = a.dht.Ping(ping.NodeID)
 	return
 }
 
 func (a *API) Put(put Put, reply *store.Key) (err error) {
-	log.Printf("Put: %s\n", put.Value)
+	log.Info().Msgf("Put: %s", put.Value)
 	*reply, err = a.dht.Put(put.Value)
 	return
 }
 
 func (a *API) Get(get Get, reply *GetReply) (err error) {
-	log.Printf("Get: %s\n", get.Key)
+	log.Info().Msgf("Get: %s", get.Key)
 	reply.Value, reply.SenderID, err = a.dht.Get(get.Key)
 	return
 }
 
 func (a *API) Exit(exit Exit, ok *bool) error {
-	log.Println("Terminating node in 5 seconds...")
+	log.Info().Msg("Terminating node in 5 seconds...")
 
 	*ok = true
 

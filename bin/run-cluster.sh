@@ -55,4 +55,5 @@ wait  # Wait for all sub processes to finish (docker run).
 echo "Done!"
 
 # Print and follow all the logs from the nodes.
-docker ps -q | xargs -L 1 -P "$numnodes" docker logs --details --follow
+docker ps -q | xargs -L 1 -P "$numnodes" -I % \
+    sh -c "docker logs --follow % | sed 's/^/[%] /g'"

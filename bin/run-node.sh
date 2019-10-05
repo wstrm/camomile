@@ -1,5 +1,5 @@
 #!/bin/sh
-set -euo pipefail
+set -euo
 
 menum=$1
 meid=$2
@@ -9,4 +9,4 @@ otherid=$4
 otheraddr=$5
 
 echo "I am: #$menum, $meid@$meaddr"
-dhtnode -me "$meid@$meaddr" -other "$otherid@$otheraddr"
+dhtnode -me "$meid@$meaddr" -other "$otherid@$otheraddr" -debug
