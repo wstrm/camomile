@@ -201,7 +201,8 @@ func TestItemHandler(t *testing.T) {
 	timer := time.NewTimer(time.Second * 3)
 	<-timer.C
 
-	_, err := db.GetItem(trueHash)
+	item, err := db.GetItem(trueHash)
+
 	if err == nil {
 		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
 	}
@@ -235,8 +236,8 @@ func TestRepublisher(t *testing.T) {
 
 	db.AddLocalItem(trueHash, testVal)
 
-	republishedItem := <-db.ch
-	if republishedItem.Value != testVal {
+	republishedValue := <-db.ch
+	if republishedValue != testVal {
 		t.Errorf("LocalItem did not get republished.")
 	}
 }
@@ -244,13 +245,14 @@ func TestRepublisher(t *testing.T) {
 func TestReplication(t *testing.T) {
 	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400)
 
-	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	testVal := "q"
+	var testNodeID node.ID
+	copy(testNodeID[:], "w")
 
-	db.AddLocalItem(trueHash, testVal)
+	db.AddItem(testVal, testNodeID)
 
-	replicatedItem := <-db.ch
-	if replicatedItem.Value != testVal {
+	replicatedValue := <-db.ch
+	if replicatedValue != testVal {
 		t.Errorf("Key did not get replicated")
 	}
 }
@@ -280,6 +282,6 @@ func TestLocalItemCh(t *testing.T) {
 	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400)
 
 	returnedChan := db.LocalItemCh()
-	go func() { returnedChan <- localItem{} }()
+	go func() { returnedChan <- "abc" }()
 	<-returnedChan
 }
