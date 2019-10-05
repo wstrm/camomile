@@ -10,9 +10,8 @@ import (
 
 func ExamplePacket() {
 	r := &packet.Packet{
-		SessionId:  []byte{123},
-		SenderId:   []byte{100},
-		SenderPort: 1337,
+		SessionId: []byte{123},
+		SenderId:  []byte{100},
 	}
 
 	d, err := proto.Marshal(r)
@@ -30,8 +29,6 @@ func ExamplePacket() {
 		fmt.Printf("expected '[123]' as SessionId in payload, got '%v'", rr.SessionId)
 	} else if !bytes.Equal([]byte{100}, rr.GetSenderId()) {
 		fmt.Printf("expected '[100]' as SenderId in payload, got '%v'", rr.SenderId)
-	} else if rr.GetSenderPort() != uint32(1337) {
-		fmt.Printf("expected '1337' as SenderPort in payload, got '%v'", rr.SenderPort)
 	} else {
 		fmt.Println("got id")
 	}

@@ -1,3 +1,4 @@
 #!/bin/sh
-
-docker exec "$(docker ps -q | shuf -n1)" dhtctl -get "$1"
+randomnode="$(docker ps -q | shuf -n1)"
+echo "Fetching value via $randomnode:"
+docker exec "$randomnode" dhtctl -get "$1"
