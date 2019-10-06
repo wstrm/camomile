@@ -141,17 +141,38 @@ func TestDuplicateContact(t *testing.T) {
 	me := Contact{NodeID: makeID([]byte{1})}
 	boot := Contact{NodeID: zeroID()}
 	c1 := Contact{NodeID: makeID([]byte{2})}
-	d := distance(me.NodeID, c1.NodeID)
 
 	rt, _ := NewTable(me, []Contact{boot})
 
 	rt.Add(c1)
 	rt.Add(c1)
 
-	bucketLen := rt.buckets[d.BucketIndex()].Len()
-	expLen := 1
-	if bucketLen != expLen {
-		t.Errorf("unexpected bucket length, %d != %d", bucketLen, expLen)
+	numContacts := 0
+	for _, bucket := range rt.buckets {
+		numContacts += bucket.Len()
+	}
+
+	expLen := 2 // A bootstrap node and c1 (and no duplicate of c1).
+	if numContacts != expLen {
+		t.Errorf("unexpected number of contacts, %d != %d", numContacts, expLen)
+	}
+}
+func TestAddLocalNode(t *testing.T) {
+	me := Contact{NodeID: makeID([]byte{1})}
+	boot := Contact{NodeID: zeroID()}
+
+	rt, _ := NewTable(me, []Contact{boot})
+
+	rt.Add(me)
+
+	numContacts := 0
+	for _, bucket := range rt.buckets {
+		numContacts += bucket.Len()
+	}
+
+	expLen := 1 // A single bootstrap node.
+	if numContacts != expLen {
+		t.Errorf("unexpected number of contacts, %d != %d", numContacts, expLen)
 	}
 }
 
