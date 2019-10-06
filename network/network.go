@@ -3,6 +3,7 @@ package network
 import (
 	"crypto/rand"
 	"net"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/rs/zerolog/log"
@@ -14,6 +15,8 @@ import (
 )
 
 const Size256 = 256 / 8
+
+const networkTimeout = 5 * time.Second
 
 type SessionID [Size256]byte
 
@@ -115,7 +118,18 @@ type FindValueRequest struct {
 }
 
 func NewUDPNetwork(me route.Contact) (Network, error) {
-	n := &udpNetwork{me: me, fvt: newTable(), fnt: newTable(), pt: newPingTable()}
+	fvtTicker := time.NewTicker(time.Second)
+	defer fvtTicker.Stop()
+
+	fntTicker := time.NewTicker(time.Second)
+	defer fntTicker.Stop()
+
+	n := &udpNetwork{
+		me:  me,
+		fvt: newTable(networkTimeout, fvtTicker),
+		fnt: newTable(networkTimeout, fntTicker),
+		pt:  newPingTable(),
+	}
 
 	n.fnr = make(chan *FindNodesRequest)
 	n.fvr = make(chan *FindValueRequest)

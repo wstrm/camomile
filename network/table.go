@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-const tableTTL = 5 * time.Second
-
 type item struct {
 	result chan Result
 	ttl    time.Time
@@ -14,16 +12,18 @@ type item struct {
 
 type table struct {
 	items map[SessionID]item
+	ttl   time.Duration
 	sync.Mutex
 }
 
-func newTable() *table {
+func newTable(ttl time.Duration, ticker *time.Ticker) *table {
 	t := &table{
+		ttl:   ttl,
 		items: make(map[SessionID]item),
 	}
 
 	go func() {
-		for now := range time.Tick(time.Second) {
+		for now := range ticker.C {
 			t.Lock()
 			for k, v := range t.items {
 				if now.After(v.ttl) {
@@ -43,7 +43,7 @@ func (t *table) Put(id SessionID, ch chan Result) {
 	defer t.Unlock()
 	t.items[id] = item{
 		result: ch,
-		ttl:    time.Now().Add(tableTTL),
+		ttl:    time.Now().Add(t.ttl),
 	}
 }
 
