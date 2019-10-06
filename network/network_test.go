@@ -118,8 +118,12 @@ func TestFindValue_value(t *testing.T) {
 	if r == nil {
 		t.Errorf("unexpected nil channel")
 	}
-	res := r.Value()
 
+	if len(r.Closest()) != 5 {
+		t.Errorf("unexpected number of contacts in closest, got: %v, exp: 5", r.Closest())
+	}
+
+	res := r.Value()
 	if res != value {
 		t.Errorf("Expected: %s Got: %s", value, res)
 	}
@@ -202,7 +206,7 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 	}
 }
 
-func TestFindNodes_value(t *testing.T) {
+func TestFindNodes_closest(t *testing.T) {
 	rng = nextFakeID([]byte{5})
 
 	ch, err := n.FindNodes(node.ID{}, *mAddr)
@@ -217,12 +221,16 @@ func TestFindNodes_value(t *testing.T) {
 		},
 	}
 
-	err = n.SendNodes(contacts, SessionID{5}, *nAddr)
+	err = m.SendNodes(contacts, SessionID{5}, *nAddr)
 	if err != nil {
 		t.Error(err)
 	}
 
 	r := <-ch
+
+	if r.Value() != "" {
+		t.Errorf("unexpected value in result, got: %v, exp: \"\" (none)", r.Value())
+	}
 
 	if len(r.Closest()) != len(contacts) {
 		t.Errorf("unexpected length of .Closest(): got: %v, exp: %v", r.Closest(), contacts)
@@ -230,5 +238,26 @@ func TestFindNodes_value(t *testing.T) {
 
 	if r.Closest()[0].NodeID.String() != contacts[0].NodeID.String() {
 		t.Errorf("unexpected node ID in .Closest(): got: %v, exp: %v", r.Closest()[0].NodeID, contacts[0].NodeID.String())
+	}
+}
+
+func TestStore(t *testing.T) {
+	rng = nextFakeID([]byte{6})
+	value := "ABC, du är mina tankar"
+	key := store.Key{1}
+
+	err := n.Store(key, value, *mAddr)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r := <-m.StoreRequestCh()
+
+	if r.Value != value {
+		t.Errorf("unexpected value in request, got: %s, exp: %s", r.Value, value)
+	}
+
+	if !r.From.NodeID.Equal(nNode.NodeID) {
+		t.Errorf("unexpected from node ID in request, got: %v, exp: %v", r.From.NodeID, nNode.NodeID)
 	}
 }
