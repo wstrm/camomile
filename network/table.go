@@ -3,6 +3,8 @@ package network
 import (
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type item struct {
@@ -27,6 +29,7 @@ func newTable(ttl time.Duration, ticker *time.Ticker) *table {
 			t.Lock()
 			for k, v := range t.items {
 				if now.After(v.ttl) {
+					log.Debug().Msgf("Session timed out (ID: %v)", k)
 					v.result <- nil // Signal removal of channel.
 					delete(t.items, k)
 				}

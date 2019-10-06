@@ -2,6 +2,7 @@ package network
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"net"
 	"time"
 
@@ -119,10 +120,7 @@ type FindValueRequest struct {
 
 func NewUDPNetwork(me route.Contact) (Network, error) {
 	fvtTicker := time.NewTicker(time.Second)
-	defer fvtTicker.Stop()
-
 	fntTicker := time.NewTicker(time.Second)
-	defer fntTicker.Stop()
 
 	n := &udpNetwork{
 		me:  me,
@@ -564,4 +562,8 @@ func (u *udpNetwork) send(addr net.UDPAddr, packet packet.Packet) error {
 		return err
 	}
 	return nil
+}
+
+func (id SessionID) String() string {
+	return hex.EncodeToString(id[:])
 }
