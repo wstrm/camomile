@@ -48,10 +48,10 @@ func init() {
 
 	var err error
 
-	nAddr, err = net.ResolveUDPAddr("udp", ":8118")
+	nAddr, err = net.ResolveUDPAddr("udp", "127.0.0.1:8118")
 	panicOnErr(err)
 
-	mAddr, err = net.ResolveUDPAddr("udp", ":8119")
+	mAddr, err = net.ResolveUDPAddr("udp", "127.0.0.1:8119")
 	panicOnErr(err)
 
 	nNode = route.Contact{
@@ -80,6 +80,7 @@ func init() {
 	}(m)
 
 	<-n.ReadyCh()
+	<-m.ReadyCh()
 }
 
 func nextFakeID(a []byte) randRead {
@@ -98,13 +99,11 @@ func TestFindValue_value(t *testing.T) {
 		t.Error(err)
 	}
 
-	go func() {
-		// Respond to a FindValue request with a value.
-		err = m.SendValue(store.Key{}, value, []route.Contact{}, SessionID{1}, *nAddr)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	// Respond to a FindValue request with a value.
+	err = m.SendValue(store.Key{}, value, []route.Contact{}, SessionID{1}, *nAddr)
+	if err != nil {
+		t.Error(err)
+	}
 
 	r := <-ch
 	if r == nil {
