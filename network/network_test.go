@@ -1,6 +1,7 @@
 package network
 
 import (
+	"bytes"
 	stdlog "log"
 	"net"
 	"os"
@@ -99,8 +100,16 @@ func TestFindValue_value(t *testing.T) {
 		t.Error(err)
 	}
 
+	contacts := []route.Contact{
+		route.NewContact(node.NewID(), net.UDPAddr{}),
+		route.NewContact(node.NewID(), net.UDPAddr{}),
+		route.NewContact(node.NewID(), net.UDPAddr{}),
+		route.NewContact(node.NewID(), net.UDPAddr{}),
+		route.NewContact(node.NewID(), net.UDPAddr{}),
+	}
+
 	// Respond to a FindValue request with a value.
-	err = m.SendValue(store.Key{}, value, []route.Contact{}, SessionID{1}, *nAddr)
+	err = m.SendValue(store.Key{}, value, contacts, SessionID{1}, *nAddr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -116,23 +125,20 @@ func TestFindValue_value(t *testing.T) {
 	}
 }
 
-/*
 func TestFindValue_contacts(t *testing.T) {
 	rng = nextFakeID([]byte{2})
 
-	// Send a findvalue request to a node att addr
-	ch, err := n.FindValue(store.Key{}, *addr)
+	// Send a FindValue request to a node at mNode
+	ch, err := n.FindValue(store.Key{}, *mAddr)
 	if err != nil {
 		t.Error(err)
 	}
 
-	// Respond to a findvalue request with a list of contacts
-	go func() {
-		err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{2}, *addr)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	// Respond to a FindValue request with a list of contacts
+	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{2}, *nAddr)
+	if err != nil {
+		t.Error(err)
+	}
 
 	r := <-ch
 	if r == nil {
@@ -150,17 +156,15 @@ func TestPingPongShow_correctChallengeReply(t *testing.T) {
 
 	correctChallenge := []byte{254}
 
-	res, _, err := n.Ping(*addr)
+	res, _, err := n.Ping(*mAddr)
 	if err != nil {
 		t.Error(err)
 	}
 
-	go func() {
-		err = n.Pong(correctChallenge, SessionID{3}, *addr)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	err = m.Pong(correctChallenge, SessionID{3}, *nAddr)
+	if err != nil {
+		t.Error(err)
+	}
 
 	r := <-res
 	rc := r.Challenge
@@ -178,17 +182,15 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 	correctChallenge := []byte{254}
 	wrongChallenge := []byte{0}
 
-	res, _, err := n.Ping(*addr)
+	res, _, err := n.Ping(*mAddr)
 	if err != nil {
 		t.Error(err)
 	}
 
-	go func() {
-		err = n.Pong(wrongChallenge, SessionID{4}, *addr)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	err = m.Pong(wrongChallenge, SessionID{4}, *nAddr)
+	if err != nil {
+		t.Error(err)
+	}
 
 	r := <-res
 	rc := r.Challenge
@@ -203,7 +205,7 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 func TestFindNodes_value(t *testing.T) {
 	rng = nextFakeID([]byte{5})
 
-	ch, err := n.FindNodes(node.ID{}, *addr)
+	ch, err := n.FindNodes(node.ID{}, *mAddr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -215,12 +217,10 @@ func TestFindNodes_value(t *testing.T) {
 		},
 	}
 
-	go func() {
-		err = n.SendNodes(contacts, SessionID{5}, *addr)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	err = n.SendNodes(contacts, SessionID{5}, *nAddr)
+	if err != nil {
+		t.Error(err)
+	}
 
 	r := <-ch
 
@@ -232,4 +232,3 @@ func TestFindNodes_value(t *testing.T) {
 		t.Errorf("unexpected node ID in .Closest(): got: %v, exp: %v", r.Closest()[0].NodeID, contacts[0].NodeID.String())
 	}
 }
-*/

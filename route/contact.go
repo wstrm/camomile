@@ -25,7 +25,6 @@ type Candidates struct {
 	contacts contactMap
 }
 
-// TODO: Ignore target?
 func NewContact(id node.ID, address net.UDPAddr) Contact {
 	return Contact{
 		NodeID:  id,
