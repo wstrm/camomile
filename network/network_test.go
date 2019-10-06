@@ -2,9 +2,14 @@ package network
 
 import (
 	"bytes"
-	"log"
+	stdlog "log"
 	"net"
+	"os"
 	"testing"
+	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
@@ -17,6 +22,19 @@ var addr *net.UDPAddr
 var n Network
 
 func init() {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	console := zerolog.ConsoleWriter{Out: os.Stderr,
+		TimeFormat: time.Stamp,
+		NoColor:    true,
+	}
+
+	logger := zerolog.New(console).With().Timestamp().Logger()
+	log.Logger = logger // Set as global logger.
+
+	// Make sure the standard logger also uses zerolog.
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(logger)
+
 	addr, _ = net.ResolveUDPAddr("udp", ":8118")
 	me := route.Contact{
 		NodeID:  node.NewID(),
@@ -26,13 +44,13 @@ func init() {
 	var err error
 	n, err = NewUDPNetwork(me)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
 	go func(n Network) {
 		err := n.Listen()
 		if err != nil {
-			log.Fatalln(err)
+			panic(err)
 		}
 	}(n)
 
