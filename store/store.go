@@ -183,6 +183,14 @@ func (db *Database) evictItem(key Key) {
 	db.remoteItems.Unlock()
 }
 
+// ForgetItem removes an item from the local items to stop it from beeing
+// republished on the Kademlia network and eventually cease to exist.
+func (db *Database) ForgetItem(key Key) {
+	db.localItems.Lock()
+	delete(db.localItems.m, key)
+	db.localItems.Unlock()
+}
+
 // itemHandler checks for expired items every second and remove them if they're outdated.
 // This function should be run as a goroutine.
 func (db *Database) itemHandler() {

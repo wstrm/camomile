@@ -285,3 +285,25 @@ func TestLocalItemCh(t *testing.T) {
 	go func() { returnedChan <- "abc" }()
 	<-returnedChan
 }
+
+func TestForgetItem(t *testing.T) {
+	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400)
+
+	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
+
+	testVal := "q"
+
+	db.AddLocalItem(trueHash, testVal)
+
+	_, err := db.GetLocalItem(trueHash)
+	if err != nil {
+		t.Errorf("expected localItem to be in db")
+	}
+
+	db.ForgetItem(trueHash)
+
+	_, err = db.GetLocalItem(trueHash)
+	if err == nil {
+		t.Errorf("expected localItem is still in db, expected error")
+	}
+}
