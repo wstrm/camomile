@@ -55,11 +55,13 @@ func TestFindValue_value(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Respond to a findvalue request with a value
-	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{1}, *addr)
-	if err != nil {
-		t.Error(err)
-	}
+	go func() {
+		// Respond to a findvalue request with a value
+		err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{1}, *addr)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	r := <-ch
 	if r == nil {
@@ -82,10 +84,12 @@ func TestFindValue_contacts(t *testing.T) {
 	}
 
 	// Respond to a findvalue request with a list of contacts
-	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{2}, *addr)
-	if err != nil {
-		t.Error(err)
-	}
+	go func() {
+		err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{2}, *addr)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	r := <-ch
 	if r == nil {
@@ -107,10 +111,13 @@ func TestPingPongShow_correctChallengeReply(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = n.Pong(correctChallenge, SessionID{3}, *addr)
-	if err != nil {
-		t.Error(err)
-	}
+
+	go func() {
+		err = n.Pong(correctChallenge, SessionID{3}, *addr)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	r := <-res
 	rc := r.Challenge
@@ -132,10 +139,13 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = n.Pong(wrongChallenge, SessionID{4}, *addr)
-	if err != nil {
-		t.Error(err)
-	}
+
+	go func() {
+		err = n.Pong(wrongChallenge, SessionID{4}, *addr)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	r := <-res
 	rc := r.Challenge
@@ -161,10 +171,13 @@ func TestFindNodes_value(t *testing.T) {
 			Address: net.UDPAddr{},
 		},
 	}
-	err = n.SendNodes(contacts, SessionID{5}, *addr)
-	if err != nil {
-		t.Error(err)
-	}
+
+	go func() {
+		err = n.SendNodes(contacts, SessionID{5}, *addr)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	r := <-ch
 
