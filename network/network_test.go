@@ -47,7 +47,7 @@ func nextFakeID(a []byte) randRead {
 }
 
 func TestFindValue_value(t *testing.T) {
-	rng = nextFakeID([]byte{123})
+	rng = nextFakeID([]byte{1})
 
 	// Send a findvalue request to a node att addr
 	ch, err := n.FindValue(store.Key{}, *addr)
@@ -56,12 +56,15 @@ func TestFindValue_value(t *testing.T) {
 	}
 
 	// Respond to a findvalue request with a value
-	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{123}, *addr)
+	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{1}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
 
 	r := <-ch
+	if r == nil {
+		t.Errorf("unexpected nil channel")
+	}
 	res := r.Value()
 
 	if res != value {
@@ -70,7 +73,7 @@ func TestFindValue_value(t *testing.T) {
 }
 
 func TestFindValue_contacts(t *testing.T) {
-	rng = nextFakeID([]byte{123})
+	rng = nextFakeID([]byte{2})
 
 	// Send a findvalue request to a node att addr
 	ch, err := n.FindValue(store.Key{}, *addr)
@@ -79,12 +82,15 @@ func TestFindValue_contacts(t *testing.T) {
 	}
 
 	// Respond to a findvalue request with a list of contacts
-	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{123}, *addr)
+	err = n.SendValue(store.Key{}, value, []route.Contact{}, SessionID{2}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
 
 	r := <-ch
+	if r == nil {
+		t.Errorf("unexpected nil channel")
+	}
 	res := r.Value()
 
 	if res != value {
@@ -93,7 +99,7 @@ func TestFindValue_contacts(t *testing.T) {
 }
 
 func TestPingPongShow_correctChallengeReply(t *testing.T) {
-	rng = nextFakeID([]byte{123})
+	rng = nextFakeID([]byte{3})
 
 	correctChallenge := []byte{254}
 
@@ -101,7 +107,7 @@ func TestPingPongShow_correctChallengeReply(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = n.Pong(correctChallenge, SessionID{123}, *addr)
+	err = n.Pong(correctChallenge, SessionID{3}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -117,7 +123,7 @@ func TestPingPongShow_correctChallengeReply(t *testing.T) {
 }
 
 func TestPingPongShow_wrongChallengeReply(t *testing.T) {
-	rng = nextFakeID([]byte{123})
+	rng = nextFakeID([]byte{4})
 
 	correctChallenge := []byte{254}
 	wrongChallenge := []byte{0}
@@ -126,7 +132,7 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = n.Pong(wrongChallenge, SessionID{123}, *addr)
+	err = n.Pong(wrongChallenge, SessionID{4}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -142,7 +148,7 @@ func TestPingPongShow_wrongChallengeReply(t *testing.T) {
 }
 
 func TestFindNodes_value(t *testing.T) {
-	rng = nextFakeID([]byte{123})
+	rng = nextFakeID([]byte{5})
 
 	ch, err := n.FindNodes(node.ID{}, *addr)
 	if err != nil {
@@ -155,7 +161,7 @@ func TestFindNodes_value(t *testing.T) {
 			Address: net.UDPAddr{},
 		},
 	}
-	err = n.SendNodes(contacts, SessionID{123}, *addr)
+	err = n.SendNodes(contacts, SessionID{5}, *addr)
 	if err != nil {
 		t.Error(err)
 	}
