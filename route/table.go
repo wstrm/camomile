@@ -9,7 +9,7 @@ import (
 	"github.com/optmzr/d7024e-dht/node"
 )
 
-const bucketSize = 20
+const BucketSize = 32
 
 type bucket struct {
 	*list.List
@@ -68,7 +68,7 @@ func (b *bucket) add(c Contact) {
 	}
 
 	// Make sure the bucket is not larger than the maximum bucket size, k.
-	if b.Len() < bucketSize {
+	if b.Len() < BucketSize {
 		b.PushFront(c) // Add the contact in the front, last seen.
 	}
 }

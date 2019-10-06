@@ -3,18 +3,19 @@ package dht
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
 	"github.com/optmzr/d7024e-dht/store"
-	"golang.org/x/crypto/blake2b"
 )
 
-const α = 3  // Degree of parallelism.
-const k = 20 // Bucket size.
+const α = 3                // Degree of parallelism.
+const k = route.BucketSize // Bucket size.
 
 const tExpire = 86410 * time.Second    // Time after which a key/value pair expires (TTL).
 const tReplicate = 3600 * time.Second  // Interval between Kademlia replication events.
@@ -41,10 +42,20 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	dht.me = me
 
 	go func(dht *DHT, me route.Contact) {
-		<-dht.nw.ReadyCh()
-		err := dht.Join(me)
-		if err != nil {
-			log.Fatalln(err)
+		<-dht.nw.ReadyCh() // Wait for network.
+
+		retryInterval := 1 * time.Second
+		for {
+			err := dht.Join(me)
+			if err != nil {
+				log.Error().Err(err).
+					Msgf("Failed to join the DHT network, retrying in %v",
+						retryInterval)
+			} else {
+				break // Join successful, exit retry loop.
+			}
+
+			time.Sleep(retryInterval)
 		}
 	}(dht, me)
 
@@ -60,7 +71,7 @@ func (dht *DHT) findValueRequestHandler() {
 	for {
 		request := <-dht.nw.FindValueRequestCh()
 
-		log.Printf("Find value request from: %v", request.From.NodeID)
+		log.Debug().Msgf("Find value request from: %v", request.From.NodeID)
 
 		// Add node so it is moved to the top of its bucket in the routing table.
 		dht.rt.Add(request.From)
@@ -75,13 +86,15 @@ func (dht *DHT) findValueRequestHandler() {
 			// Fetch this nodes contacts that are closest to the requested key.
 			closest = dht.rt.NClosest(target, k).SortedContacts()
 		} else {
-			log.Printf("Found value: %s", item.Value)
+			log.Debug().Msgf("Found value: %s", item.Value)
 		}
 
 		err = dht.nw.SendValue(request.Key, item.Value, closest,
 			request.SessionID, request.From.Address)
 		if err != nil {
-			log.Println(err)
+			log.Error().Err(err).
+				Msgf("Send value network call failed for: %v",
+					request.From.Address)
 		}
 	}
 }
@@ -90,7 +103,7 @@ func (dht *DHT) findNodesRequestHandler() {
 	for {
 		request := <-dht.nw.FindNodesRequestCh()
 
-		log.Printf("Find node request from: %v", request.From.NodeID)
+		log.Debug().Msgf("Find node request from: %v", request.From.NodeID)
 
 		// Add node so it is moved to the top of its bucket in the routing table.
 		dht.rt.Add(request.From)
@@ -100,7 +113,11 @@ func (dht *DHT) findNodesRequestHandler() {
 
 		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
 		if err != nil {
-			log.Println(err)
+			log.
+				Error().
+				Err(err).
+				Msgf("Find nodes network call failed for: %v",
+					request.From.Address)
 		}
 	}
 }
@@ -109,7 +126,7 @@ func (dht *DHT) storeRequestHandler() {
 	for {
 		request := <-dht.nw.StoreRequestCh()
 
-		log.Printf("Store value request from: %v", request.From.NodeID)
+		log.Debug().Msgf("Store value request from: %v", request.From.NodeID)
 
 		// Add node so it is moved to the top of its bucket in the routing table.
 		dht.rt.Add(request.From)
@@ -142,7 +159,7 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	return
 }
 
-// Ping pings a specified camomileID
+// Ping pings a specified node ID.
 func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 	sl := dht.rt.NClosest(target, 1)
 
@@ -155,7 +172,8 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 
 	resultCh, challenge, err := dht.nw.Ping(contact.Address)
 	if err != nil {
-		return nil, fmt.Errorf("not able to send ping request to %v: %w", contact.NodeID, err)
+		return nil, fmt.Errorf("not able to send ping request to %v: %w",
+			contact.NodeID, err)
 	}
 
 	response := <-resultCh
@@ -172,13 +190,19 @@ func (dht *DHT) pongRequestHandler() {
 	for {
 		request := <-dht.nw.PongRequestCh()
 
-		log.Printf("Pong request from: %v (%x)", request.From.NodeID, request.Challenge)
+		log.Printf("Pong request from: %v (%x)",
+			request.From.NodeID, request.Challenge)
 
 		dht.rt.Add(request.From)
 
-		err := dht.nw.Pong(request.Challenge, request.SessionID, request.From.Address)
+		err := dht.nw.Pong(
+			request.Challenge,
+			request.SessionID,
+			request.From.Address)
 		if err != nil {
-			log.Println(err)
+			log.Error().Err(err).
+				Msgf("Pong network call failed for: %v",
+					request.From.Address)
 		}
 	}
 }
@@ -215,6 +239,11 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 	// Contacts holds a sorted (slice) copy of the shortlist.
 	contacts := sl.SortedContacts()
 
+	if len(contacts) == 0 {
+		// No candidates found in the routing table.
+		return contacts, fmt.Errorf("empty routing table")
+	}
+
 	// Closest is the node that closest in distance to the target node ID.
 	closest := contacts[0]
 
@@ -233,7 +262,10 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 
 			ch, err := call.Do(nw, contact.Address)
 			if err != nil {
-				log.Println(err)
+				log.Error().Err(err).
+					Msgf("Unable to dial: %v, removing from candidates...",
+						contact.NodeID)
+
 				sl.Remove(contact)
 			} else {
 				// Mark as contacted.
@@ -274,12 +306,24 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 					break // Callee requested that the walk must be stopped.
 				}
 			} else {
-				// Network call timed out. Remove the callee from the shortlist.
+				// Network response timed out.
+				log.Warn().
+					Msgf("Network response from: %v timed out, removing from candidates...",
+						callee.NodeID)
+
+				// Remove the callee from the candidates.
 				sl.Remove(callee)
 			}
 		}
 
 		contacts = sl.SortedContacts()
+
+		if len(contacts) == 0 {
+			// No candidates responded and all of them was therefore removed
+			// from the shortlist.
+			return contacts, fmt.Errorf("no candidates responded")
+		}
+
 		first := contacts[0]
 		if closest.NodeID.Equal(first.NodeID) {
 			// Unchanged closest node from last run, re-run but check all the
@@ -319,8 +363,7 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 	var stored []route.Contact
 	for _, contact := range contacts {
 		if e := dht.nw.Store(hash, value, contact.Address); e != nil {
-			log.Printf("Failed to store at %s (%s): %v",
-				contact.NodeID.String(), contact.Address.String(), e)
+			logFailedStoreAt(contact, e)
 		} else {
 			stored = append(stored, contact)
 		}
@@ -345,7 +388,7 @@ func (dht *DHT) iterativeFindValue(hash store.Key) (value string, sender node.ID
 		value = call.value
 		sender = call.sender
 	} else {
-		err = fmt.Errorf("Couldn't find any value with the hash: %v", hash)
+		err = fmt.Errorf("couldn't find any value with the hash: %v", hash)
 		return
 	}
 
@@ -353,8 +396,7 @@ func (dht *DHT) iterativeFindValue(hash store.Key) (value string, sender node.ID
 	if len(closest) > 0 {
 		first := closest[0]
 		if e := dht.nw.Store(hash, value, first.Address); e != nil {
-			log.Printf("Failed to store at %s (%s): %v",
-				first.NodeID.String(), first.Address.String(), e)
+			logFailedStoreAt(first, e)
 		} else {
 			logStoredAt(hash, first)
 		}
@@ -363,19 +405,26 @@ func (dht *DHT) iterativeFindValue(hash store.Key) (value string, sender node.ID
 	return
 }
 
+func logFailedStoreAt(contact route.Contact, err error) {
+	log.Error().Err(err).
+		Msgf("Failed to store at %v (%v)", contact.NodeID, contact.Address)
+}
+
 func logStoredAt(hash store.Key, contacts ...route.Contact) {
-	log.Printf("Stored value with hash %v at %d nodes:\n",
-		hash.String(), len(contacts))
-	logContacts(contacts...)
+	log.Info().
+		Msgf("Stored value with hash %v at %d nodes:\n%s",
+			hash.String(), len(contacts), tabbedContactList(contacts...))
 }
 
 func logAcquaintedWith(contacts ...route.Contact) {
-	log.Printf("Acquainted with %d nodes:\n", len(contacts))
-	logContacts(contacts...)
+	log.Info().
+		Msgf("Acquainted with %d nodes:\n%s",
+			len(contacts), tabbedContactList(contacts...))
 }
 
-func logContacts(contacts ...route.Contact) {
+func tabbedContactList(contacts ...route.Contact) (cl string) {
 	for _, contact := range contacts {
-		log.Println("\t", contact.NodeID.String())
+		cl += "\t" + contact.NodeID.String() + "\n"
 	}
+	return
 }

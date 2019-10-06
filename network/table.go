@@ -2,61 +2,59 @@ package network
 
 import (
 	"sync"
+	"time"
 )
 
-type findNodesTable struct {
-	items map[SessionID]chan Result
+type item struct {
+	result chan Result
+	ttl    time.Time
+}
+
+type table struct {
+	items map[SessionID]item
+	ttl   time.Duration
 	sync.Mutex
 }
 
-func newFindNodesTable() *findNodesTable {
-	return &findNodesTable{
-		items: make(map[SessionID]chan Result),
+func newTable(ttl time.Duration, ticker *time.Ticker) *table {
+	t := &table{
+		ttl:   ttl,
+		items: make(map[SessionID]item),
+	}
+
+	go func() {
+		for now := range ticker.C {
+			t.Lock()
+			for k, v := range t.items {
+				if now.After(v.ttl) {
+					v.result <- nil // Signal removal of channel.
+					delete(t.items, k)
+				}
+			}
+			t.Unlock()
+		}
+	}()
+
+	return t
+}
+
+func (t *table) Put(id SessionID, ch chan Result) {
+	t.Lock()
+	defer t.Unlock()
+	t.items[id] = item{
+		result: ch,
+		ttl:    time.Now().Add(t.ttl),
 	}
 }
 
-func (t *findNodesTable) Put(id SessionID, ch chan Result) {
+func (t *table) Get(id SessionID) (chan Result, bool) {
 	t.Lock()
 	defer t.Unlock()
-	t.items[id] = ch
+	i, ok := t.items[id]
+	return i.result, ok
 }
 
-func (t *findNodesTable) Get(id SessionID) chan Result {
-	t.Lock()
-	defer t.Unlock()
-	return t.items[id]
-}
-
-func (t *findNodesTable) Remove(id SessionID) {
-	t.Lock()
-	defer t.Unlock()
-	delete(t.items, id)
-}
-
-type findValueTable struct {
-	items map[SessionID]chan Result
-	sync.Mutex
-}
-
-func newFindValueTable() *findValueTable {
-	return &findValueTable{
-		items: make(map[SessionID]chan Result),
-	}
-}
-
-func (t *findValueTable) Put(id SessionID, ch chan Result) {
-	t.Lock()
-	defer t.Unlock()
-	t.items[id] = ch
-}
-
-func (t *findValueTable) Get(id SessionID) chan Result {
-	t.Lock()
-	defer t.Unlock()
-	return t.items[id]
-}
-
-func (t *findValueTable) Remove(id SessionID) {
+func (t *table) Remove(id SessionID) {
 	t.Lock()
 	defer t.Unlock()
 	delete(t.items, id)
@@ -79,10 +77,11 @@ func (t *pingTable) Put(id SessionID, ch chan *PingResult) {
 	t.items[id] = ch
 }
 
-func (t *pingTable) Get(id SessionID) chan *PingResult {
+func (t *pingTable) Get(id SessionID) (chan *PingResult, bool) {
 	t.Lock()
 	defer t.Unlock()
-	return t.items[id]
+	ch, ok := t.items[id]
+	return ch, ok
 }
 
 func (t *pingTable) Remove(id SessionID) {

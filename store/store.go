@@ -3,12 +3,13 @@ package store
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
-	"github.com/optmzr/d7024e-dht/node"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/blake2b"
+
+	"github.com/optmzr/d7024e-dht/node"
 )
 
 // Key should be a checksum made with blake2b256 hash algorithm, in binary and at a length of 32 bytes.
@@ -128,7 +129,7 @@ func (db *Database) AddItem(value string, origPub node.ID) {
 	db.remoteItems.m[key] = newItem
 	db.remoteItems.Unlock()
 
-	log.Printf("Stored:\n\tValue: %s\n\tHash: %v", value, key)
+	log.Info().Msgf("Stored:\n\tValue: %s\n\tHash: %v", value, key)
 }
 
 // AddLocalItem adds an value to the local item database that this node has requested to be stored on the kademlia network.
