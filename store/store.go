@@ -54,7 +54,7 @@ type replicate struct {
 type Database struct {
 	remoteItems remoteItems
 	localItems  localItems
-	ch          chan localItem
+	ch          chan string // only needs to return string value
 	replicate   replicate
 	tExpire     time.Duration
 	tReplicate  time.Duration
@@ -69,10 +69,11 @@ func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
 	db.tExpire = tExpire
 	db.tReplicate = tReplicate
 	db.tRepublish = tRepublish
+	db.setReplicate()
 
 	db.remoteItems = remoteItems{m: make(map[Key]item)}
 	db.localItems = localItems{m: make(map[Key]localItem)}
-	db.ch = make(chan localItem)
+	db.ch = make(chan string)
 
 	go db.itemHandler()
 	go db.republishHandler()
@@ -97,7 +98,7 @@ func (db *Database) getReplicate() time.Time {
 }
 
 // LocalItemCh returns the database communication channel.
-func (db *Database) LocalItemCh() chan localItem {
+func (db *Database) LocalItemCh() chan string {
 	return db.ch
 }
 
@@ -219,13 +220,19 @@ func (db *Database) republishHandler() {
 		db.localItems.RLock()
 		for _, localItem := range db.localItems.m {
 			if now.After(localItem.repubTime) {
-				db.ch <- localItem
-			} else if replicate {
-				// Replication event, replicate all stored values to k nodes.
-				db.ch <- localItem
+				db.ch <- localItem.Value
 			}
 		}
 		db.localItems.RUnlock()
+
+		// Replication event, replicate all stored values to k nodes.
+		if replicate {
+			db.remoteItems.RLock()
+			for _, remoteItem := range db.remoteItems.m {
+				db.ch <- remoteItem.Value
+			}
+			db.remoteItems.RUnlock()
+		}
 
 		// If a replication event just happened, reset the replication timer.
 		if replicate {
