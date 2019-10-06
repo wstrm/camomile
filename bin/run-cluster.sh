@@ -43,9 +43,8 @@ do
     echo "Starting node: #$num, $nodeid@$nodeip:$port"
     docker run --net "$networkname" --ip "$nodeip" -t -d \
         dhtnode "$num" "$nodeid" "$nodeip:$port" \
-                "$lastid" "$lastip:$port" >/dev/null
+                "$lastid" "$lastip:$port" >/dev/null &
 
-    sleep 2
     lastnum="$num"
     lastid="$nodeid"
     lastip="$nodeip"
