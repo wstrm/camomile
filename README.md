@@ -38,21 +38,23 @@ Done!
 | **METHOD** | **PATH**   | **FORM FIELDS** | **CODE**       | **DESCRIPTION**                           |
 |:----------:|------------|-----------------|----------------|-------------------------------------------|
 | GET        | /{hex key} |                 | 200 OK         | Retrieves a value by its hash key.        |
-| POST       | /          | value=<value>   | 202 ACCEPTED   | Saves a value in the DHT network.         |
+| POST       | /          | value=*value*   | 202 ACCEPTED   | Saves a value in the DHT network.         |
 | DELETE     | /{hex key} |                 | 204 NO CONTENT | Orders the DHT network to forget a value. |
 
 ### Examples
 #### Save value
 ```
-curl -F 'value=ABC, du är mina tankar' 127.0.0.1:8080/
+ξ curl -F 'value=ABC, du är mina tankar' 127.0.0.1:8080/
+Key: bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
 ```
 
 #### Retrieve value
 ```
-curl 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+ξ curl 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+Value: ABC, du är mina tankar (from: 468604004b684d591c980054f2656428967705595ba79c8f41bb36f13256df5c)
 ```
 
 #### Forget value
 ```
-curl -X DELETE 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+ξ curl -X DELETE 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
 ```
