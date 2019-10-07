@@ -32,3 +32,27 @@ Start the cluster script:
 ```
 
 Done!
+
+## REST API
+### Reference
+| **METHOD** | **PATH**   | **FORM FIELDS** | **CODE**       | **DESCRIPTION**                           |
+|:----------:|------------|-----------------|----------------|-------------------------------------------|
+| GET        | /{hex key} |                 | 200 OK         | Retrieves a value by its hash key.        |
+| POST       | /          | value=<value>   | 202 ACCEPTED   | Saves a value in the DHT network.         |
+| DELETE     | /{hex key} |                 | 204 NO CONTENT | Orders the DHT network to forget a value. |
+
+### Examples
+#### Save value
+```
+curl -F 'value=ABC, du är mina tankar' 127.0.0.1:8080/
+```
+
+#### Retrieve value
+```
+curl 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+```
+
+#### Forget value
+```
+curl -X DELETE 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+```
