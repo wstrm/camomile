@@ -6,8 +6,6 @@ import (
 	"io"
 	stdlog "log"
 	"net"
-	"net/http"
-	"net/rpc"
 	"os"
 	"strings"
 	"time"
@@ -16,36 +14,13 @@ import (
 	"github.com/rs/zerolog/diode"
 	"github.com/rs/zerolog/log"
 
-	"github.com/optmzr/d7024e-dht/ctl"
 	"github.com/optmzr/d7024e-dht/dht"
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
 )
 
-const defaultAddress = ":8118"
-
-func rpcServe(dht *dht.DHT) {
-	api := ctl.NewAPI(dht)
-
-	err := rpc.Register(api)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to register RPC API")
-	}
-
-	rpc.HandleHTTP()
-	addr := ":1234"
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Failed to listen on: %s", addr)
-	}
-	log.Info().Msgf("RPC listening on: %s", addr)
-
-	err = http.Serve(l, nil)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Unable to serve at RPC listener")
-	}
-}
+const defaultDHTAddress = ":8118"
 
 func flagSplit(flag string) (string, string) {
 	if flag == "" {
@@ -69,6 +44,7 @@ func main() {
 	var console io.Writer
 	if *debugFlag {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 		// Pretty print logs instead of JSON.
 		console = zerolog.ConsoleWriter{Out: os.Stderr,
 			TimeFormat: time.Stamp,
@@ -86,27 +62,26 @@ func main() {
 				Err(err).
 				Msgf("Failed to open log file at: %s", logFilepath)
 		}
-		console = fw
+
+		// Wrap the file writer io.Writer in a non-blocking wrapper.
+		console = diode.NewWriter(fw, 1000, 10*time.Millisecond, func(missed int) {
+			fmt.Printf("Logger dropped %d messages", missed)
+		})
 	}
 
-	// Wrap the console io.Writer in a non-blocking wrapper.
-	writer := diode.NewWriter(console, 1000, 10*time.Millisecond, func(missed int) {
-		fmt.Printf("Logger dropped %d messages", missed)
-	})
-
-	// Create logger with timestamps and the non-blocking writer.
-	logger := zerolog.New(writer).With().Timestamp().Logger()
+	// Create logger with timestamps and the console.
+	logger := zerolog.New(console).With().Timestamp().Logger()
 	log.Logger = logger // Set as global logger.
 
 	// Make sure the standard logger also uses zerolog.
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(logger)
 
-	address, err := net.ResolveUDPAddr("udp", defaultAddress)
+	address, err := net.ResolveUDPAddr("udp", defaultDHTAddress)
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Msgf("Unable to resolve UDP address: %s", defaultAddress)
+			Msgf("Unable to resolve UDP address: %s", defaultDHTAddress)
 	}
 
 	var others []route.Contact
@@ -188,6 +163,7 @@ func main() {
 	}
 
 	go rpcServe(dht)
+	go httpServe(dht)
 
 	err = nw.Listen()
 	if err != nil {
