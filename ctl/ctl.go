@@ -27,6 +27,10 @@ type Get struct {
 	Key store.Key
 }
 
+type Forget struct {
+	Key store.Key
+}
+
 type Exit struct{}
 
 type GetReply struct {
@@ -53,6 +57,11 @@ func (a *API) Put(put Put, reply *store.Key) (err error) {
 func (a *API) Get(get Get, reply *GetReply) (err error) {
 	log.Info().Msgf("Get: %s", get.Key)
 	reply.Value, reply.SenderID, err = a.dht.Get(get.Key)
+	return
+}
+
+func (a *API) Forget(forget Forget) {
+	log.Info().Msgf("Forget: %s", forget.Key)
 	return
 }
 

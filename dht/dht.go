@@ -135,6 +135,12 @@ func (dht *DHT) storeRequestHandler() {
 	}
 }
 
+// Forget removes the key and associated value from the local items DB and
+// therefore stop republishing it on the network.
+func (dht *DHT) Forget(hash store.Key) {
+	dht.db.ForgetItem(hash)
+}
+
 // Get retrieves the value for a specified key from the network.
 func (dht *DHT) Get(hash store.Key) (value string, sender node.ID, err error) {
 	value, sender, err = dht.iterativeFindValue(hash)

@@ -54,6 +54,14 @@ func ping(c *rpc.Client, id node.ID) {
 	fmt.Printf("Ping response: %x\n", challenge)
 }
 
+func forget(c *rpc.Client, key store.Key) {
+	forget := ctl.Forget{
+		Key: key,
+	}
+
+	c.Call("API.Forget", forget, nil)
+}
+
 func exit(c *rpc.Client) {
 	var ok bool
 
@@ -74,6 +82,7 @@ func main() {
 	var putFlag = flag.String("put", "", "put value to store")
 	var getFlag = flag.String("get", "", "key of the value to get")
 	var pingFlag = flag.String("ping", "", "ID of the node to ping")
+	var forgetFlag = flag.String("forget", "", "key of the value to forget")
 	var exitFlag = flag.Bool("exit", false, "Terminate the node")
 
 	// Parse input
@@ -89,6 +98,7 @@ func main() {
 	if "" != *putFlag {
 		put(client, *putFlag)
 	}
+
 	if "" != *getFlag {
 		key, err := store.KeyFromString(*getFlag)
 		if err != nil {
@@ -96,13 +106,24 @@ func main() {
 		}
 		get(client, key)
 	}
-	if *pingFlag != "" {
+
+	if "" != *pingFlag {
 		id, err := node.IDFromString(*pingFlag)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		ping(client, id)
 	}
+
+	if "" != *forgetFlag {
+		key, err := store.KeyFromString(*forgetFlag)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		forget(client, key)
+	}
+
 	if *exitFlag {
 		exit(client)
 	}
