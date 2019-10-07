@@ -30,7 +30,7 @@ func (q *FindNodesCall) Do(nw network.Network, address net.UDPAddr) (chan networ
 }
 
 func (q *FindNodesCall) Result(_ network.Result, _ route.Contact) (_ bool) { return }
-func (q *FindNodesCall) Target() node.ID                  { return q.target }
+func (q *FindNodesCall) Target() node.ID                                   { return q.target }
 
 func NewFindValueCall(hash store.Key) *FindValueCall {
 	return &FindValueCall{
@@ -39,8 +39,8 @@ func NewFindValueCall(hash store.Key) *FindValueCall {
 }
 
 type FindValueCall struct {
-	hash  store.Key
-	value string
+	hash   store.Key
+	value  string
 	sender node.ID
 }
 
