@@ -76,12 +76,6 @@ func newHTTPHandler(dht *cdht.DHT) *httpHandler {
 	return &httpHandler{dht: dht}
 }
 
-func newHTTPMux(dht *cdht.DHT) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.Handle("/", newHTTPHandler(dht))
-	return mux
-}
-
 func httpServe(dht *cdht.DHT) {
 	handler := newHTTPHandler(dht)
 	log.Info().Msgf("HTTP listening on: %s", defaultHTTPAddress)
