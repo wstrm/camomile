@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -38,12 +39,13 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		value, sender, err := h.dht.Get(key)
 		if err != nil {
 			writeError(w, err, "Failed to get value by key in DHT",
-				http.StatusInternalServerError)
+				http.StatusNotFound)
 			return
 		}
 
+		w.Header().Set("Origin", sender.String())
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Value: %s (from: %v)", value, sender)
+		io.WriteString(w, value)
 
 	case http.MethodPost: // Save value in DHT.
 		value := r.PostFormValue("value")
@@ -61,8 +63,9 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		w.Header().Set("Location", fmt.Sprintf("/%v", key))
 		w.WriteHeader(http.StatusAccepted)
-		fmt.Fprintf(w, "Key: %v", key)
+		io.WriteString(w, value)
 
 	case http.MethodDelete: // Forget value in DHT.
 		// TODO(#72): Couple REST API forget call with DHT

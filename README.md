@@ -35,26 +35,41 @@ Done!
 
 ## REST API
 ### Reference
-| **METHOD** | **PATH**   | **FORM FIELDS** | **CODE**       | **DESCRIPTION**                           |
-|:----------:|------------|-----------------|----------------|-------------------------------------------|
-| GET        | /{hex key} |                 | 200 OK         | Retrieves a value by its hash key.        |
-| POST       | /          | value=*value*   | 202 ACCEPTED   | Saves a value in the DHT network.         |
-| DELETE     | /{hex key} |                 | 204 NO CONTENT | Orders the DHT network to forget a value. |
+| **METHOD** | **PATH**   | **FORM FIELDS** | **HEADER**          | **CODE**       | **DESCRIPTION**                           |
+|:----------:|------------|-----------------|---------------------|----------------|-------------------------------------------|
+| GET        | /{hex key} | N/A             | Origin: *sender id* | 200 OK         | Retrieves a value by its hash key.        |
+| POST       | /          | value=*value*   | Location: /*key*    | 202 ACCEPTED   | Saves a value in the DHT network.         |
+| DELETE     | /{hex key} | N/A             | N/A                 | 204 NO CONTENT | Orders the DHT network to forget a value. |
 
 ### Examples
 #### Save value
 ```
-ξ curl -F 'value=ABC, du är mina tankar' 127.0.0.1:8080/
-Key: bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+ξ curl -iF 'value=ABC, du är mina tankar' 127.0.0.1:8080/
+HTTP/1.1 202 Accepted
+Location: /bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+Date: Mon, 07 Oct 2019 13:42:02 GMT
+Content-Length: 23
+Content-Type: text/plain; charset=utf-8
+
+ABC, du är mina tankar
 ```
 
 #### Retrieve value
 ```
-ξ curl 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
-Value: ABC, du är mina tankar (from: 468604004b684d591c980054f2656428967705595ba79c8f41bb36f13256df5c)
+ξ curl -i 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+HTTP/1.1 200 OK
+Origin: 3a6b713115697a45658aac4ac5eb1714e6f985cb1826d2b5cc53562e2d490157
+Date: Mon, 07 Oct 2019 13:42:44 GMT
+Content-Length: 23
+Content-Type: text/plain; charset=utf-8
+
+ABC, du är mina tankar
 ```
 
 #### Forget value
 ```
-ξ curl -X DELETE 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+ξ curl -iX DELETE 127.0.0.1:8080/bde0e9f6e9d3fabd5bf6849e179f0aee485630f6d5c1c4398517cc1543fb9386
+HTTP/1.1 204 No Content
+Date: Mon, 07 Oct 2019 13:44:49 GMT
+Content-Length: 0
 ```
