@@ -35,11 +35,11 @@ Done!
 
 ## REST API
 ### Reference
-| **METHOD** | **PATH**   | **FORM FIELDS** | **HEADER**          | **CODE**       | **DESCRIPTION**                           |
-|:----------:|------------|-----------------|---------------------|----------------|-------------------------------------------|
-| GET        | /{hex key} | N/A             | Origin: *sender id* | 200 OK         | Retrieves a value by its hash key.        |
-| POST       | /          | value=*value*   | Location: /*key*    | 202 ACCEPTED   | Saves a value in the DHT network.         |
-| DELETE     | /{hex key} | N/A             | N/A                 | 204 NO CONTENT | Orders the DHT network to forget a value. |
+| **Method** | **Path** | **Form Fields** | **Header**       | **Code**       | **Description**                           |
+|:----------:|----------|-----------------|------------------|----------------|-------------------------------------------|
+| GET        | /{key}   | N/A             | Origin: {id}     | 200 OK         | Retrieves a value by its hash key.        |
+| POST       | /        | value={value}   | Location: /{key} | 202 Accepted   | Saves a value in the DHT network.         |
+| DELETE     | /{key}   | N/A             | N/A              | 204 No Content | Orders the DHT network to forget a value. |
 
 ### Examples
 #### Save value
