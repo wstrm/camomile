@@ -28,9 +28,9 @@ genhash() {
     printf "%s" "$1" | sha256sum | cut -f1 -d' '
 }
 
-lastnum="$numnodes"
-lastip="$networkprefix.$((numnodes+1))"
-lastid=$(genhash "$lastnum")
+bootnum="1"
+bootip="$networkprefix.2"
+bootid=$(genhash "$bootnum")
 
 # Start N nodes and pair them.
 for num in $(seq 1 "$numnodes")
@@ -43,11 +43,7 @@ do
     echo "Starting node: #$num, $nodeid@$nodeip:$port"
     docker run --net "$networkname" --ip "$nodeip" -t -d \
         dhtnode "$num" "$nodeid" "$nodeip:$port" \
-                "$lastid" "$lastip:$port" >/dev/null &
-
-    lastnum="$num"
-    lastid="$nodeid"
-    lastip="$nodeip"
+                "$bootid" "$bootip:$port" >/dev/null &
 done
 
 printf "Waiting for all nodes to finish starting up... "
