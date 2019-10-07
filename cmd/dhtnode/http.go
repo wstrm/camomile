@@ -65,6 +65,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Key: %v", key)
 
 	case http.MethodDelete: // Forget value in DHT.
+		// TODO(#72): Couple REST API forget call with DHT
 		w.WriteHeader(http.StatusNotImplemented)
 	default:
 		w.WriteHeader(http.StatusNotFound)
