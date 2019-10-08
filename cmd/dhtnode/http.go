@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -25,6 +26,13 @@ func writeError(w http.ResponseWriter, err error, msg string, code int) {
 	http.Error(w, msg, code)
 }
 
+func checkWriteError(err error) {
+	if err != nil {
+		// Status OK header already written, just log the error instead.
+		log.Error().Err(err).Msg("failed to write value to body")
+	}
+}
+
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet: // Get value from DHT.
@@ -38,12 +46,14 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		value, sender, err := h.dht.Get(key)
 		if err != nil {
 			writeError(w, err, "Failed to get value by key in DHT",
-				http.StatusInternalServerError)
+				http.StatusNotFound)
 			return
 		}
 
+		w.Header().Set("Origin", sender.String())
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Value: %s (from: %v)", value, sender)
+		_, err = io.WriteString(w, value)
+		checkWriteError(err)
 
 	case http.MethodPost: // Save value in DHT.
 		value := r.PostFormValue("value")
@@ -61,8 +71,10 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		w.Header().Set("Location", fmt.Sprintf("/%v", key))
 		w.WriteHeader(http.StatusAccepted)
-		fmt.Fprintf(w, "Key: %v", key)
+		_, err = io.WriteString(w, value)
+		checkWriteError(err)
 
 	case http.MethodDelete: // Forget value in DHT.
 		// TODO(#72): Couple REST API forget call with DHT
