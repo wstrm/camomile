@@ -67,74 +67,6 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	return
 }
 
-func (dht *DHT) findValueRequestHandler() {
-	for {
-		request := <-dht.nw.FindValueRequestCh()
-
-		log.Debug().Msgf("Find value request from: %v", request.From.NodeID)
-
-		// Add node so it is moved to the top of its bucket in the routing table.
-		dht.rt.Add(request.From)
-
-		var closest []route.Contact
-		target := node.ID(request.Key)
-
-		// Try to fetch the value from the local storage.
-		item, err := dht.db.GetItem(request.Key)
-		if err != nil {
-			// No luck.
-			// Fetch this nodes contacts that are closest to the requested key.
-			closest = dht.rt.NClosest(target, k).SortedContacts()
-		} else {
-			log.Debug().Msgf("Found value: %s", item.Value)
-		}
-
-		err = dht.nw.SendValue(request.Key, item.Value, closest,
-			request.SessionID, request.From.Address)
-		if err != nil {
-			log.Error().Err(err).
-				Msgf("Send value network call failed for: %v",
-					request.From.Address)
-		}
-	}
-}
-
-func (dht *DHT) findNodesRequestHandler() {
-	for {
-		request := <-dht.nw.FindNodesRequestCh()
-
-		log.Debug().Msgf("Find node request from: %v", request.From.NodeID)
-
-		// Add node so it is moved to the top of its bucket in the routing table.
-		dht.rt.Add(request.From)
-
-		// Fetch this nodes contacts that are closest to the requested target.
-		closest := dht.rt.NClosest(request.Target, k).SortedContacts()
-
-		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
-		if err != nil {
-			log.
-				Error().
-				Err(err).
-				Msgf("Find nodes network call failed for: %v",
-					request.From.Address)
-		}
-	}
-}
-
-func (dht *DHT) storeRequestHandler() {
-	for {
-		request := <-dht.nw.StoreRequestCh()
-
-		log.Debug().Msgf("Store value request from: %v", request.From.NodeID)
-
-		// Add node so it is moved to the top of its bucket in the routing table.
-		dht.rt.Add(request.From)
-
-		dht.db.AddItem(request.Value, request.From.NodeID)
-	}
-}
-
 // Get retrieves the value for a specified key from the network.
 func (dht *DHT) Get(hash store.Key) (value string, sender node.ID, err error) {
 	value, sender, err = dht.iterativeFindValue(hash)
@@ -178,7 +110,7 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 
 	response := <-resultCh
 
-	dht.rt.Add(response.From)
+	go dht.addNode(contact)
 
 	if bytes.Equal(challenge, response.Challenge) {
 		return response.Challenge, nil
@@ -186,161 +118,49 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 	return nil, fmt.Errorf("challenge mismatch")
 }
 
-func (dht *DHT) pongRequestHandler() {
-	for {
-		request := <-dht.nw.PongRequestCh()
-
-		log.Printf("Pong request from: %v (%x)",
-			request.From.NodeID, request.Challenge)
-
-		dht.rt.Add(request.From)
-
-		err := dht.nw.Pong(
-			request.Challenge,
-			request.SessionID,
-			request.From.Address)
-		if err != nil {
-			log.Error().Err(err).
-				Msgf("Pong network call failed for: %v",
-					request.From.Address)
-		}
-	}
-}
-
-type awaitChannel struct {
-	ch     chan network.Result
-	callee route.Contact
-}
-
-type awaitResult struct {
-	result network.Result
-	callee route.Contact
-}
-
-func (dht *DHT) walk(call Call) ([]route.Contact, error) {
-	nw := dht.nw
+// addNode attempts to add a node to the routing table. If the bucket is full
+// for the given node, the least recently seen node will be pinged and evicted
+// if it doesn't respond. If the bucket already contain the node, it'll be moved
+// to the top of the bucket.
+func (dht *DHT) addNode(contact route.Contact) {
 	rt := dht.rt
-	me := dht.me
-	target := call.Target()
 
-	// The first α contacts selected are used to create a *shortlist* for the
-	// search.
-	sl := dht.rt.NClosest(target, α)
-
-	// Keep a map of contacts that has been sent to, to make sure we do not
-	// contact the same node multiple times.
-	sent := make(map[node.ID]bool)
-
-	// If a cycle results in an unchanged `closest` node, then a FindNode
-	// network call should be made to each of the closest nodes that has not
-	// already been queried.
-	rest := false
-
-	// Contacts holds a sorted (slice) copy of the shortlist.
-	contacts := sl.SortedContacts()
-
-	if len(contacts) == 0 {
-		// No candidates found in the routing table.
-		return contacts, fmt.Errorf("empty routing table")
+	ok := rt.Add(contact)
+	if ok {
+		log.Debug().Msgf("Added node: %v to routing table", contact.NodeID)
+		return
 	}
 
-	// Closest is the node that closest in distance to the target node ID.
-	closest := contacts[0]
+	log.Debug().Msgf("Full bucket for node: %v", contact.NodeID)
 
-	for {
-		// Holds a slice of channels that are awaiting a response from the
-		// network.
-		await := []awaitChannel{}
+	old := rt.Head(contact.NodeID).NodeID
 
-		for i, contact := range contacts {
-			if i >= α && !rest {
-				break // Limit to α contacts per shortlist.
-			}
-			if sent[contact.NodeID] || contact.NodeID.Equal(me.NodeID) {
-				continue // Ignore already contacted contacts or local node.
-			}
+	log.Debug().Msgf("Pinging old node: %v", old)
 
-			ch, err := call.Do(nw, contact.Address)
-			if err != nil {
-				log.Error().Err(err).
-					Msgf("Unable to dial: %v, removing from candidates...",
-						contact.NodeID)
+	// Check if the oldest node is still alive.
+	// If the node answers, it'll be moved to the top of the bucket by the Ping
+	// method.
+	_, err := dht.Ping(old)
 
-				sl.Remove(contact)
-			} else {
-				// Mark as contacted.
-				sent[contact.NodeID] = true
+	if err != nil {
+		log.Debug().
+			Msgf("Ping failed for old node: %v, error: %v:", old, err)
 
-				// Add to await channel queue.
-				await = append(await, awaitChannel{ch: ch, callee: contact})
-			}
+		// Either challenge mismatch or dead node, remove it.
+		rt.Remove(old)
+
+		// Re-try to add new node.
+		ok = rt.Add(contact)
+		if !ok {
+			log.Warn().
+				Msg("Unable to add new node even after old node was evicted")
 		}
-
-		results := make(chan awaitResult)
-		for _, ac := range await {
-			go func(ac awaitChannel) {
-				// Redirect all responses to the results channel.
-				r := <-ac.ch
-				results <- awaitResult{result: r, callee: ac.callee}
-			}(ac)
-		}
-
-		// Iterate through every result from the responding nodes and add their
-		// closest contacts to the shortlist.
-		for i := 0; i < len(await); i++ {
-			ac := <-results
-			result := ac.result
-			callee := ac.callee
-
-			if result != nil {
-				// Add node so it is moved to the top of its bucket in the
-				// routing table.
-				rt.Add(callee)
-
-				// Add the responding node's closest contacts.
-				sl.Add(result.Closest()...)
-
-				// Update callee with intermediate results.
-				stop := call.Result(result, callee)
-				if stop {
-					break // Callee requested that the walk must be stopped.
-				}
-			} else {
-				// Network response timed out.
-				log.Warn().
-					Msgf("Network response from: %v timed out, removing from candidates...",
-						callee.NodeID)
-
-				// Remove the callee from the candidates.
-				sl.Remove(callee)
-			}
-		}
-
-		contacts = sl.SortedContacts()
-
-		if len(contacts) == 0 {
-			// No candidates responded and all of them was therefore removed
-			// from the shortlist.
-			return contacts, fmt.Errorf("no candidates responded")
-		}
-
-		first := contacts[0]
-		if closest.NodeID.Equal(first.NodeID) {
-			// Unchanged closest node from last run, re-run but check all the
-			// nodes in the shortlist (and not only the α closest).
-			if !rest {
-				rest = true
-				continue
-			}
-
-			// Done. Return the contacts in the shortlist sorted by distance.
-			return contacts, nil
-
-		} else {
-			// New closest node found, continue iteration.
-			closest = first
-		}
+		return
 	}
+
+	log.Debug().
+		Msgf("Old node: %v responded, ignoring new node: %v",
+			old, contact.NodeID)
 }
 
 func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {

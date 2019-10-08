@@ -17,7 +17,7 @@ import (
 
 const Size256 = 256 / 8
 
-const networkTimeout = 5 * time.Second
+const networkTimeout = 1 * time.Second
 
 type SessionID [Size256]byte
 

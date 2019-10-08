@@ -53,8 +53,8 @@ func distance(a, b node.ID) (d Distance) {
 	return
 }
 
-// add adds the contact to the bucket.
-func (b *bucket) add(c Contact) {
+// add adds the contact to the bucket, it'll return false if the bucket is full.
+func (b *bucket) add(c Contact) (ok bool) {
 	b.rw.Lock()
 	defer b.rw.Unlock()
 
@@ -63,13 +63,47 @@ func (b *bucket) add(c Contact) {
 	for e := b.Front(); e != nil; e = e.Next() {
 		if c.NodeID.Equal(e.Value.(Contact).NodeID) {
 			b.MoveToFront(e)
-			return
+			// Successfully "added", in reality, the position in the list was
+			// just updated.
+			return true
 		}
 	}
 
 	// Make sure the bucket is not larger than the maximum bucket size, k.
 	if b.Len() < BucketSize {
 		b.PushFront(c) // Add the contact in the front, last seen.
+		return true
+	}
+
+	return false // Full bucket, contact was not added.
+}
+
+// head retrieves the oldest contact in a bucket. The bucket must have at least
+// one contact, or else it'll panic.
+func (b *bucket) head() Contact {
+	b.rw.RLock()
+	defer b.rw.RUnlock()
+
+	e := b.Back()
+	if e == nil {
+		panic("head must not be called on empty bucket")
+	}
+	return e.Value.(Contact)
+}
+
+// remove a contact from a bucket. If the contact doesn't exist the bucket is
+// left unchanged.
+func (b *bucket) remove(id node.ID) {
+	b.rw.Lock()
+	defer b.rw.Unlock()
+
+	// Small optimization: As the old contacts are usually those that are
+	// evicted, iterate through the list backwards to search the oldest contacts
+	// first.
+	for e := b.Back(); e != nil; e = e.Prev() {
+		if id.Equal(e.Value.(Contact).NodeID) {
+			b.Remove(e)
+		}
 	}
 }
 
@@ -89,17 +123,30 @@ func (b *bucket) contacts(id node.ID) (c Contacts) {
 }
 
 // Add finds the correct bucket to add the contact to and inserts the contact.
-func (rt *Table) Add(c Contact) {
+// It will return false if the bucket is full.
+func (rt *Table) Add(c Contact) (ok bool) {
 	me := rt.me
 
 	// Do not add local node to routing table.
 	if me.NodeID.Equal(c.NodeID) {
-		return
+		return true // OK, the node already know of itself.
 	}
 
 	d := distance(me.NodeID, c.NodeID)
 	b := rt.buckets[d.BucketIndex()]
-	b.add(c)
+	return b.add(c)
+}
+
+func (rt *Table) Head(id node.ID) Contact {
+	d := distance(rt.me.NodeID, id)
+	b := rt.buckets[d.BucketIndex()]
+	return b.head()
+}
+
+func (rt *Table) Remove(id node.ID) {
+	d := distance(rt.me.NodeID, id)
+	b := rt.buckets[d.BucketIndex()]
+	b.remove(id)
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
