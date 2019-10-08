@@ -217,3 +217,20 @@ func TestGet(t *testing.T) {
 		t.Errorf("unexpected value, got: %s, exp: %s", value, expValue)
 	}
 }
+
+func TestForget(t *testing.T) {
+	d := newDHT(t)
+
+	hash := store.Key{
+		189, 224, 233, 246, 233, 211, 250, 189, 91, 246, 132, 158, 23, 159, 10,
+		238, 72, 86, 48, 246, 213, 193, 196, 57, 133, 23, 204, 21, 67, 251, 147,
+		134,
+	}
+
+	d.Forget(hash)
+
+	_, err := d.db.GetLocalItem(hash)
+	if err == nil {
+		t.Error("expected error, value still in local item db after forget")
+	}
+}

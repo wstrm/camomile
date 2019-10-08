@@ -36,7 +36,10 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 		return
 	}
 
-	dht.db = store.NewDatabase(tExpire, tReplicate, tRepublish)
+	iHTicker := time.NewTicker(time.Second)
+	rHTicker := time.NewTicker(time.Second)
+
+	dht.db = store.NewDatabase(tExpire, tReplicate, tRepublish, iHTicker, rHTicker)
 
 	dht.nw = nw
 	dht.me = me
