@@ -321,13 +321,13 @@ func TestForgetItem(t *testing.T) {
 
 	_, err := db.GetLocalItem(trueHash)
 	if err != nil {
-		t.Errorf("expected localItem to be in db")
+		t.Error("expected localItem to be in db")
 	}
 
 	db.ForgetItem(trueHash)
 
 	_, err = db.GetLocalItem(trueHash)
 	if err == nil {
-		t.Errorf("expected localItem is still in db, expected error")
+		t.Error("expected localItem is still in db, expected error")
 	}
 }
