@@ -12,7 +12,7 @@ func TestTable_putGet(t *testing.T) {
 	table := newTable(time.Hour, ticker)
 
 	id := generateID()
-	ch := make(chan Result)
+	ch := makeResultChan()
 
 	table.Put(id, ch)
 
@@ -38,7 +38,7 @@ func TestTable_remove(t *testing.T) {
 	table := newTable(time.Hour, ticker)
 
 	id := generateID()
-	ch := make(chan Result)
+	ch := makeResultChan()
 
 	table.Put(id, ch)
 
@@ -68,7 +68,7 @@ func TestTable_ttl(t *testing.T) {
 	}(tch)
 
 	id := generateID()
-	ch := make(chan Result)
+	ch := makeResultChan()
 
 	table := newTable(time.Nanosecond, ticker)
 	table.Put(id, ch)
@@ -86,28 +86,5 @@ func TestTable_ttl(t *testing.T) {
 	_, ok := table.Get(id)
 	if ok {
 		t.Error("expected channel to be removed")
-	}
-}
-
-func TestTablePing(t *testing.T) {
-	table := newPingTable()
-
-	id := generateID()
-	ch := make(chan *PingResult)
-
-	table.Put(id, ch)
-
-	c, ok := table.Get(id)
-	if !ok {
-		t.Error("expected channel, got nil")
-	}
-
-	go func() {
-		ch <- nil
-	}()
-
-	res := <-c
-	if res != nil {
-		t.Errorf("expected: nil, got: %v", res)
 	}
 }

@@ -10,12 +10,12 @@ import (
 )
 
 type awaitChannel struct {
-	ch     chan network.Result
+	ch     chan network.FindResult
 	callee route.Contact
 }
 
 type awaitResult struct {
-	result network.Result
+	result network.FindResult
 	callee route.Contact
 }
 
