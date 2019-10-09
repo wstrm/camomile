@@ -62,6 +62,7 @@ func (a *API) Get(get Get, reply *GetReply) (err error) {
 
 func (a *API) Forget(forget Forget) {
 	log.Info().Msgf("Forget: %s", forget.Key)
+	a.dht.Forget(forget.Key)
 }
 
 func (a *API) Exit(exit Exit, ok *bool) error {
