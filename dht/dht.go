@@ -104,11 +104,14 @@ func (dht *DHT) Ping(target node.ID) (chal []byte, err error) {
 
 	resultCh, challenge, err := dht.nw.Ping(contact.Address)
 	if err != nil {
-		return nil, fmt.Errorf("not able to send ping request to %v: %w",
+		return nil, fmt.Errorf("ping request failed for: %v: %w",
 			contact.NodeID, err)
 	}
 
 	response := <-resultCh
+	if response == nil {
+		return nil, fmt.Errorf("ping response from: %v timed out", contact.NodeID)
+	}
 
 	go dht.addNode(contact)
 
