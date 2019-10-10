@@ -140,7 +140,9 @@ func (net *udpNetwork) FindValue(key store.Key, address net.UDPAddr) (chan netwo
 	return ch, nil
 }
 
-func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, []byte, error) { return nil, nil, nil }
+func (net *udpNetwork) Ping(addr net.UDPAddr) (chan *network.PingResult, []byte, error) {
+	return nil, nil, nil
+}
 func (net *udpNetwork) Pong(challenge []byte, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
@@ -213,5 +215,22 @@ func TestGet(t *testing.T) {
 	expValue := "ABC, du är mina tankar"
 	if value != expValue {
 		t.Errorf("unexpected value, got: %s, exp: %s", value, expValue)
+	}
+}
+
+func TestForget(t *testing.T) {
+	d := newDHT(t)
+
+	hash := store.Key{
+		189, 224, 233, 246, 233, 211, 250, 189, 91, 246, 132, 158, 23, 159, 10,
+		238, 72, 86, 48, 246, 213, 193, 196, 57, 133, 23, 204, 21, 67, 251, 147,
+		134,
+	}
+
+	d.Forget(hash)
+
+	_, err := d.db.GetLocalItem(hash)
+	if err == nil {
+		t.Error("expected error, value still in local item db after forget")
 	}
 }

@@ -36,7 +36,10 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 		return
 	}
 
-	dht.db = store.NewDatabase(tExpire, tReplicate, tRepublish)
+	iHTicker := time.NewTicker(time.Second)
+	rHTicker := time.NewTicker(time.Second)
+
+	dht.db = store.NewDatabase(tExpire, tReplicate, tRepublish, iHTicker, rHTicker)
 
 	dht.nw = nw
 	dht.me = me
@@ -133,6 +136,12 @@ func (dht *DHT) storeRequestHandler() {
 
 		dht.db.AddItem(request.Value, request.From.NodeID)
 	}
+}
+
+// Forget removes the key and associated value from the local items DB and
+// therefore stop republishing it on the network.
+func (dht *DHT) Forget(hash store.Key) {
+	dht.db.ForgetItem(hash)
 }
 
 // Get retrieves the value for a specified key from the network.
