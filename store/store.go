@@ -63,7 +63,7 @@ type Database struct {
 
 // NewDatabase instantiates a new database object with the given time constants, returns a Database pointer and a channel.
 // Spins up the two governing handlers as go routines, responsible for maintaining the database.
-func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
+func NewDatabase(tExpire, tReplicate, tRepublish time.Duration, iHTicker, rHTicker *time.Ticker) *Database {
 	db := new(Database)
 
 	db.tExpire = tExpire
@@ -75,8 +75,8 @@ func NewDatabase(tExpire, tReplicate, tRepublish time.Duration) *Database {
 	db.localItems = localItems{m: make(map[Key]localItem)}
 	db.ch = make(chan string)
 
-	go db.itemHandler()
-	go db.republishHandler()
+	go db.itemHandler(iHTicker)
+	go db.republishHandler(rHTicker)
 
 	return db
 }
@@ -183,14 +183,18 @@ func (db *Database) evictItem(key Key) {
 	db.remoteItems.Unlock()
 }
 
+// ForgetItem removes an item from the local items to stop it from beeing
+// republished on the Kademlia network and eventually cease to exist.
+func (db *Database) ForgetItem(key Key) {
+	db.localItems.Lock()
+	delete(db.localItems.m, key)
+	db.localItems.Unlock()
+}
+
 // itemHandler checks for expired items every second and remove them if they're outdated.
 // This function should be run as a goroutine.
-func (db *Database) itemHandler() {
-	for {
-		timer := time.NewTimer(time.Second * 1)
-		<-timer.C
-
-		now := time.Now()
+func (db *Database) itemHandler(ticker *time.Ticker) {
+	for now := range ticker.C {
 		var evictees []Key
 
 		db.remoteItems.RLock()
@@ -209,12 +213,8 @@ func (db *Database) itemHandler() {
 
 // republishHandler checks stored localItems that's due for renewal at remote nodes.
 // This function should be run as a goroutine.
-func (db *Database) republishHandler() {
-	for {
-		timer := time.NewTimer(time.Second * 1)
-		<-timer.C
-
-		now := time.Now()
+func (db *Database) republishHandler(ticker *time.Ticker) {
+	for now := range ticker.C {
 		replicate := now.After(db.getReplicate())
 
 		db.localItems.RLock()
