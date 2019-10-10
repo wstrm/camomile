@@ -8,7 +8,7 @@ import (
 )
 
 type item struct {
-	result chan Result
+	result chan interface{}
 	ttl    time.Time
 }
 
@@ -16,6 +16,10 @@ type table struct {
 	items map[SessionID]item
 	ttl   time.Duration
 	sync.Mutex
+}
+
+func makeResultChan() chan interface{} {
+	return make(chan interface{})
 }
 
 func newTable(ttl time.Duration, ticker *time.Ticker) *table {
@@ -41,7 +45,7 @@ func newTable(ttl time.Duration, ticker *time.Ticker) *table {
 	return t
 }
 
-func (t *table) Put(id SessionID, ch chan Result) {
+func (t *table) Put(id SessionID, ch chan interface{}) {
 	t.Lock()
 	defer t.Unlock()
 	t.items[id] = item{
@@ -50,7 +54,7 @@ func (t *table) Put(id SessionID, ch chan Result) {
 	}
 }
 
-func (t *table) Get(id SessionID) (chan Result, bool) {
+func (t *table) Get(id SessionID) (chan interface{}, bool) {
 	t.Lock()
 	defer t.Unlock()
 	i, ok := t.items[id]
@@ -63,32 +67,30 @@ func (t *table) Remove(id SessionID) {
 	delete(t.items, id)
 }
 
-type pingTable struct {
-	items map[SessionID]chan *PingResult
-	sync.Mutex
+func toPingResult(results chan interface{}) chan *PingResult {
+	ch := make(chan *PingResult)
+	go func() {
+		r := <-results
+		if r == nil {
+			ch <- nil
+		} else {
+			ch <- r.(*PingResult)
+		}
+		close(ch)
+	}()
+	return ch
 }
 
-func newPingTable() *pingTable {
-	return &pingTable{
-		items: make(map[SessionID]chan *PingResult),
-	}
-}
-
-func (t *pingTable) Put(id SessionID, ch chan *PingResult) {
-	t.Lock()
-	defer t.Unlock()
-	t.items[id] = ch
-}
-
-func (t *pingTable) Get(id SessionID) (chan *PingResult, bool) {
-	t.Lock()
-	defer t.Unlock()
-	ch, ok := t.items[id]
-	return ch, ok
-}
-
-func (t *pingTable) Remove(id SessionID) {
-	t.Lock()
-	defer t.Unlock()
-	delete(t.items, id)
+func toFindResult(results chan interface{}) chan FindResult {
+	ch := make(chan FindResult)
+	go func() {
+		r := <-results
+		if r == nil {
+			ch <- nil
+		} else {
+			ch <- r.(FindResult)
+		}
+		close(ch)
+	}()
+	return ch
 }

@@ -101,8 +101,8 @@ func randomFindNodesResult(address net.UDPAddr) (node.ID, []route.Contact) {
 
 // FindNodes mocks a FindNodes call by returning a NodeListResult with some
 // random contacts as closest.
-func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan network.Result, error) {
-	ch := make(chan network.Result)
+func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan network.FindResult, error) {
+	ch := make(chan network.FindResult)
 	go func() {
 		id, closest := randomFindNodesResult(address)
 
@@ -117,10 +117,10 @@ func (net *udpNetwork) FindNodes(target node.ID, address net.UDPAddr) (chan netw
 
 var findValueCalls uint32 = 0
 
-func (net *udpNetwork) FindValue(key store.Key, address net.UDPAddr) (chan network.Result, error) {
+func (net *udpNetwork) FindValue(key store.Key, address net.UDPAddr) (chan network.FindResult, error) {
 	calls := atomic.AddUint32(&findValueCalls, 1)
 
-	ch := make(chan network.Result)
+	ch := make(chan network.FindResult)
 	go func() {
 		id, closest := randomFindNodesResult(address)
 

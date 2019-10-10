@@ -137,6 +137,72 @@ func TestAdd(t *testing.T) {
 	}
 }
 
+func TestHead_incremental(t *testing.T) {
+	me := Contact{NodeID: zeroID()}
+	boot := Contact{NodeID: randomID()}
+
+	rt, _ := NewTable(me, []Contact{boot})
+
+	for i := 2; i < 50; i++ {
+		rt.Add(Contact{NodeID: randomID()})
+
+		contact := rt.Head(boot.NodeID)
+
+		if !contact.NodeID.Equal(boot.NodeID) {
+			t.Errorf("bootstrap node was not returned as head (load factor: %d), got: %v, exp: %v",
+				i, contact.NodeID, boot.NodeID)
+		}
+	}
+}
+
+func TestHead_panic(t *testing.T) {
+	me := Contact{NodeID: zeroID()}
+	boot := Contact{NodeID: randomID()}
+
+	rt, _ := NewTable(me, []Contact{boot})
+
+	i := distance(me.NodeID, boot.NodeID).BucketIndex()
+
+	// Produces an index that if offset by 1 from i.
+	c1 := Contact{NodeID: makeID([]byte{1 << uint(i)})}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic as %v shouldn't be in the same bucket as %v", boot.NodeID, c1.NodeID)
+		}
+	}()
+
+	rt.Head(c1.NodeID) // Unit under test.
+}
+
+func TestRemove_incremental(t *testing.T) {
+	me := Contact{NodeID: zeroID()}
+
+	var others []Contact
+	for i := 0; i < 100; i++ {
+		others = append(others, Contact{NodeID: randomID()})
+	}
+
+	rt, _ := NewTable(me, others)
+
+	// Shuffle the contacts so that they are removed in a random order.
+	rand.Shuffle(len(others),
+		func(i, j int) { others[i], others[j] = others[j], others[i] })
+
+	for i := 0; i < len(others); i++ {
+		a := others[i]
+
+		rt.Remove(a.NodeID)
+
+		contacts := rt.NClosest(me.NodeID, 500).SortedContacts()
+		for _, b := range contacts {
+			if b.NodeID.Equal(a.NodeID) {
+				t.Errorf("node %v still exist in the routing table", a.NodeID)
+			}
+		}
+	}
+}
+
 func TestDuplicateContact(t *testing.T) {
 	me := Contact{NodeID: makeID([]byte{1})}
 	boot := Contact{NodeID: zeroID()}
