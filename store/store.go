@@ -151,11 +151,11 @@ func (db *Database) AddLocalItem(key Key, value string) {
 func (db *Database) GetItem(key Key) (reqItem item, err error) {
 	newExpirationTime := time.Now().Add(db.tExpire)
 
-	db.remoteItems.RLock()
+	db.remoteItems.Lock()
 	requestedItem, found := db.remoteItems.m[key]
 	requestedItem.expire = newExpirationTime
 	db.remoteItems.m[key] = requestedItem
-	db.remoteItems.RUnlock()
+	db.remoteItems.Unlock()
 
 	if !found {
 		err = fmt.Errorf("store: GetItem, no item matching key: %v", key)
