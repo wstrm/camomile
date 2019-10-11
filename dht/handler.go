@@ -99,3 +99,11 @@ func (dht *DHT) pongRequestHandler() {
 		}
 	}
 }
+
+func (dht *DHT) republishRequestHandler() {
+	for {
+		request := <- dht.nw.RepublishRequestCH()
+
+		log.Debug().Msgf("Rebublish value request from: %v", request.From.NodeID)
+	}
+}

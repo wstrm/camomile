@@ -66,6 +66,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.findValueRequestHandler()
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
+	go dht.republishRequestHandler()
 
 	return
 }
