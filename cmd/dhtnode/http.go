@@ -33,10 +33,15 @@ func checkWriteError(err error) {
 	}
 }
 
+func getKeyFromPath(path string) (store.Key, error) {
+	key, err := store.KeyFromString(strings.TrimPrefix(path, "/"))
+	return key, err
+}
+
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet: // Get value from DHT.
-		key, err := store.KeyFromString(strings.TrimPrefix(r.URL.Path, "/"))
+		key, err := getKeyFromPath(r.URL.Path)
 		if err != nil {
 			writeError(w, err, "Cannot decode key as hex",
 				http.StatusBadRequest)
@@ -77,8 +82,16 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		checkWriteError(err)
 
 	case http.MethodDelete: // Forget value in DHT.
-		// TODO(#72): Couple REST API forget call with DHT
-		w.WriteHeader(http.StatusNotImplemented)
+		key, err := getKeyFromPath(r.URL.Path)
+		if err != nil {
+			writeError(w, err, "Cannot decode key as hex",
+				http.StatusBadRequest)
+			return
+		}
+
+		h.dht.Forget(key)
+		w.WriteHeader(http.StatusOK)
+
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
