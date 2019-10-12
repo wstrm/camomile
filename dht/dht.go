@@ -71,14 +71,6 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.pongRequestHandler()
 	go dht.refreshRequestHandler()
 
-	// TODO(optmzr): Remove this before merge.
-	go func(dht *DHT) {
-		for {
-			r := <-dht.db.LocalItemCh()
-			log.Info().Msg(r)
-		}
-	}(dht)
-
 	return
 }
 
