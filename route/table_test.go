@@ -388,3 +388,38 @@ func TestNClosest_concurrent(t *testing.T) {
 	wg.Wait()
 	fmt.Println()
 }
+
+func TestRefreshCh(t *testing.T) {
+	me := Contact{NodeID: makeID([]byte{0xff})}
+	boot := Contact{NodeID: makeID([]byte{0x7f})}
+	tExpire := time.Second
+
+	tch := make(chan time.Time)
+	ticker := &time.Ticker{
+		C: tch,
+	}
+
+	go func(tch chan time.Time) {
+		// Add an hour to mock "now". This will make the channel to fire a
+		// refresh event immediately.
+		tch <- time.Now().Add(time.Hour)
+	}(tch)
+
+	rt, _ := NewTable(me, []Contact{boot}, tExpire, ticker)
+
+	// Every bucket should be untouched on initialization, producing a refresh
+	// event for all of them (in order).
+	exp := 0
+	for {
+		if exp == 256 {
+			break
+		}
+
+		i := <-rt.RefreshCh()
+		if i != exp {
+			t.Errorf("unexpected bucket index from refresh channel, got: %d, exp: %d", i, exp)
+		}
+
+		exp++
+	}
+}
