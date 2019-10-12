@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/optmzr/d7024e-dht/node"
 )
@@ -13,13 +14,16 @@ const BucketSize = 32
 
 type bucket struct {
 	*list.List
-	rw sync.RWMutex
+	lastAccess time.Time
+	rw         sync.RWMutex
 }
 
 // Table implements a routing table according to the Kademlia specification.
 type Table struct {
-	buckets [node.IDLength]*bucket
-	me      Contact
+	buckets   [node.IDLength]*bucket
+	me        Contact
+	tRefresh  time.Duration
+	refreshCh chan int
 }
 
 // Distance represents the distance between two node IDs.
@@ -53,8 +57,17 @@ func distance(a, b node.ID) (d Distance) {
 	return
 }
 
+// touch updates the last access timestamp to now.
+func (b *bucket) touch() {
+	b.rw.Lock()
+	b.lastAccess = time.Now()
+	b.rw.Unlock()
+}
+
 // add adds the contact to the bucket, it'll return false if the bucket is full.
 func (b *bucket) add(c Contact) (ok bool) {
+	b.touch()
+
 	b.rw.Lock()
 	defer b.rw.Unlock()
 
@@ -81,6 +94,8 @@ func (b *bucket) add(c Contact) (ok bool) {
 // head retrieves the oldest contact in a bucket. The bucket must have at least
 // one contact, or else it'll panic.
 func (b *bucket) head() Contact {
+	b.touch()
+
 	b.rw.RLock()
 	defer b.rw.RUnlock()
 
@@ -94,6 +109,8 @@ func (b *bucket) head() Contact {
 // remove a contact from a bucket. If the contact doesn't exist the bucket is
 // left unchanged.
 func (b *bucket) remove(id node.ID) {
+	b.touch()
+
 	b.rw.Lock()
 	defer b.rw.Unlock()
 
@@ -110,6 +127,8 @@ func (b *bucket) remove(id node.ID) {
 // contacts returns all the contacts in a bucket including the distance to a
 // provided node ID.
 func (b *bucket) contacts(id node.ID) (c Contacts) {
+	b.touch()
+
 	b.rw.RLock()
 	defer b.rw.RUnlock()
 
@@ -137,12 +156,16 @@ func (rt *Table) Add(c Contact) (ok bool) {
 	return b.add(c)
 }
 
+// Head retrieves the oldest contact in a bucket for a specified id.
+// The bucket must have at least one contact, or else it'll panic.
 func (rt *Table) Head(id node.ID) Contact {
 	d := distance(rt.me.NodeID, id)
 	b := rt.buckets[d.BucketIndex()]
 	return b.head()
 }
 
+// Remove a contact from a bucket. If the contact doesn't exist the bucket is
+// left unchanged.
 func (rt *Table) Remove(id node.ID) {
 	d := distance(rt.me.NodeID, id)
 	b := rt.buckets[d.BucketIndex()]
@@ -177,10 +200,38 @@ func (rt *Table) NClosest(target node.ID, n int) (sl *Candidates) {
 	return
 }
 
+// RefreshCh returns a channel that will be published to when the routing table
+// requests a bucket refresh.
+func (rt *Table) RefreshCh() chan int {
+	return rt.refreshCh
+}
+
+// refreshHandler checks for buckets that haven't been touched in tRefresh time
+// and sends a refresh request with the bucket index to the refresh channel.
+func (rt *Table) refreshHandler(ticker *time.Ticker) {
+	rt.refreshCh = make(chan int)
+
+	go func() {
+		for now := range ticker.C {
+			for i, b := range rt.buckets {
+				b.rw.RLock()
+				refresh := now.After(b.lastAccess.Add(rt.tRefresh))
+				b.rw.RUnlock()
+
+				if refresh {
+					rt.refreshCh <- i
+				}
+			}
+		}
+	}()
+}
+
 // NewTable creates a new routing table with all the buckets initialized and the
 // local node added to the last bucket. At least one bootstrapping node must be
 // provided.
-func NewTable(me Contact, others []Contact) (rt *Table, err error) {
+func NewTable(me Contact, others []Contact,
+	tRefresh time.Duration, refreshTicker *time.Ticker) (rt *Table, err error) {
+
 	if len(others) == 0 {
 		err = errors.New("at least one bootstrap contact must be provided")
 		return
@@ -188,6 +239,7 @@ func NewTable(me Contact, others []Contact) (rt *Table, err error) {
 
 	rt = new(Table)
 	rt.me = me
+	rt.tRefresh = tRefresh
 
 	// Create all the buckets.
 	for i := range rt.buckets {
@@ -198,6 +250,8 @@ func NewTable(me Contact, others []Contact) (rt *Table, err error) {
 	for _, other := range others {
 		rt.Add(other)
 	}
+
+	go rt.refreshHandler(refreshTicker)
 
 	return
 }

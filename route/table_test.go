@@ -83,7 +83,8 @@ func TestMe(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 	rtMe := rt.me
 
 	if !me.NodeID.Equal(rtMe.NodeID) {
@@ -95,12 +96,14 @@ func TestNewTable(t *testing.T) {
 	me := Contact{NodeID: zeroID()}
 	boots := []Contact{Contact{NodeID: randomID()}, Contact{NodeID: randomID()}}
 
-	_, err := NewTable(me, boots)
+	_, err := NewTable(me, boots,
+		time.Second, time.NewTicker(time.Second))
 	if err != nil {
 		t.Errorf("cannot create table: %w", err)
 	}
 
-	_, err = NewTable(me, []Contact{})
+	_, err = NewTable(me, []Contact{},
+		time.Second, time.NewTicker(time.Second))
 	if err == nil {
 		t.Error("expected error on empty bootstrap slice")
 	}
@@ -122,7 +125,8 @@ func TestAdd(t *testing.T) {
 	for i < 7 {
 		c1 := Contact{NodeID: makeID([]byte{1 << i})}
 
-		rt, _ := NewTable(me, []Contact{boot})
+		rt, _ := NewTable(me, []Contact{boot},
+			time.Second, time.NewTicker(time.Second))
 
 		rt.Add(c1)
 
@@ -141,7 +145,8 @@ func TestHead_incremental(t *testing.T) {
 	me := Contact{NodeID: zeroID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	for i := 2; i < 50; i++ {
 		rt.Add(Contact{NodeID: randomID()})
@@ -159,7 +164,8 @@ func TestHead_panic(t *testing.T) {
 	me := Contact{NodeID: zeroID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	i := distance(me.NodeID, boot.NodeID).BucketIndex()
 
@@ -183,7 +189,8 @@ func TestRemove_incremental(t *testing.T) {
 		others = append(others, Contact{NodeID: randomID()})
 	}
 
-	rt, _ := NewTable(me, others)
+	rt, _ := NewTable(me, others,
+		time.Second, time.NewTicker(time.Second))
 
 	// Shuffle the contacts so that they are removed in a random order.
 	rand.Shuffle(len(others),
@@ -208,7 +215,8 @@ func TestDuplicateContact(t *testing.T) {
 	boot := Contact{NodeID: zeroID()}
 	c1 := Contact{NodeID: makeID([]byte{2})}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	rt.Add(c1)
 	rt.Add(c1)
@@ -227,7 +235,8 @@ func TestAddLocalNode(t *testing.T) {
 	me := Contact{NodeID: makeID([]byte{1})}
 	boot := Contact{NodeID: zeroID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	rt.Add(me)
 
@@ -246,7 +255,8 @@ func TestNClosest(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	var contacts []Contact
 	var contact Contact
@@ -293,7 +303,8 @@ func TestNClosest(t *testing.T) {
 func BenchmarkAdd(b *testing.B) {
 	rt, _ := NewTable(
 		Contact{NodeID: randomID()},
-		[]Contact{Contact{NodeID: randomID()}})
+		[]Contact{Contact{NodeID: randomID()}},
+		time.Second, time.NewTicker(time.Second))
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
@@ -315,7 +326,8 @@ func BenchmarkNClosest(b *testing.B) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	var contacts []Contact
 	var contact Contact
@@ -338,7 +350,8 @@ func TestNClosest_concurrent(t *testing.T) {
 	me := Contact{NodeID: randomID()}
 	boot := Contact{NodeID: randomID()}
 
-	rt, _ := NewTable(me, []Contact{boot})
+	rt, _ := NewTable(me, []Contact{boot},
+		time.Second, time.NewTicker(time.Second))
 
 	var contacts []Contact
 	var wg sync.WaitGroup

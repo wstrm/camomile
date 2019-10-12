@@ -18,8 +18,9 @@ const α = 3                // Degree of parallelism.
 const k = route.BucketSize // Bucket size.
 
 const tExpire = 86410 * time.Second    // Time after which a key/value pair expires (TTL).
-const tReplicate = 3600 * time.Second  // Interval between Kademlia replication events.
+const tReplicate = 3600 * time.Second  // Interval between replication events.
 const tRepublish = 86400 * time.Second // Time after which the original publisher must republish a key/value pair.
+const tRefresh = 3600 * time.Second    // Time after which the routing table requests a refresh of an untouched bucket.
 
 type DHT struct {
 	rt *route.Table
@@ -29,8 +30,10 @@ type DHT struct {
 }
 
 func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT, err error) {
+	refreshTicker := time.NewTicker(60 * time.Second)
+
 	dht = new(DHT)
-	dht.rt, err = route.NewTable(me, others)
+	dht.rt, err = route.NewTable(me, others, tRefresh, refreshTicker)
 	if err != nil {
 		err = fmt.Errorf("cannot initialize routing table: %w", err)
 		return
@@ -66,6 +69,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.findValueRequestHandler()
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
+	go dht.refreshRequestHandler()
 
 	// TODO(optmzr): Remove this before merge.
 	go func(dht *DHT) {
