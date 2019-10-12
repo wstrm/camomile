@@ -2,7 +2,9 @@ package node
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
+	"math/bits"
 	"testing"
 )
 
@@ -23,6 +25,7 @@ func TestEqual(t *testing.T) {
 	}
 
 	defer func() {
+		rng = rand.Read
 		if r := recover(); r == nil {
 			t.Error("expected panic")
 		}
@@ -74,5 +77,31 @@ func TestIDFromBytes(t *testing.T) {
 	id := IDFromBytes(b)
 	if !bytes.Equal(id[:], exp[:]) {
 		t.Errorf("unexpected id, got:\n\t%v,\nexp:\n\t %v", id[:], exp)
+	}
+}
+
+func TestRandomIDWithPrefix_uniqueDistance(t *testing.T) {
+	str := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	id, _ := IDFromString(str)
+
+	i := 0
+	for nextID := range RandomIDWithPrefix(id) {
+		numLeadingOnes := 0
+
+		for _, b := range nextID {
+			l := bits.LeadingZeros8(^uint8(b))
+
+			numLeadingOnes += l
+			if l != 8 {
+				break
+			}
+		}
+
+		if numLeadingOnes != i {
+			t.Errorf("unexpected number of leading ones, got: %d, exp: %d",
+				numLeadingOnes, i)
+		}
+
+		i++
 	}
 }
