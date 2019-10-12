@@ -80,12 +80,12 @@ func TestIDFromBytes(t *testing.T) {
 	}
 }
 
-func TestRandomIDWithPrefix_uniqueDistance(t *testing.T) {
+func TestIDWithPrefixGenerator_uniqueDistances(t *testing.T) {
 	str := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	id, _ := IDFromString(str)
 
 	i := 0
-	for nextID := range RandomIDWithPrefix(id) {
+	for nextID := range IDWithPrefixGenerator(id) {
 		numLeadingOnes := 0
 
 		for _, b := range nextID {
