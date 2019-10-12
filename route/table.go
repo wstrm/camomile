@@ -209,8 +209,6 @@ func (rt *Table) RefreshCh() chan int {
 // refreshHandler checks for buckets that haven't been touched in tRefresh time
 // and sends a refresh request with the bucket index to the refresh channel.
 func (rt *Table) refreshHandler(ticker *time.Ticker) {
-	rt.refreshCh = make(chan int)
-
 	go func() {
 		for now := range ticker.C {
 			for i, b := range rt.buckets {
@@ -239,6 +237,7 @@ func NewTable(me Contact, others []Contact,
 
 	rt = new(Table)
 	rt.me = me
+	rt.refreshCh = make(chan int)
 	rt.tRefresh = tRefresh
 
 	// Create all the buckets.
