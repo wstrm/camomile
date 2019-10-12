@@ -67,6 +67,14 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
 
+	// TODO(optmzr): Remove this before merge.
+	go func(dht *DHT) {
+		for {
+			r := <-dht.db.LocalItemCh()
+			log.Info().Msg(r)
+		}
+	}(dht)
+
 	return
 }
 
@@ -91,12 +99,19 @@ func (dht *DHT) Put(value string) (hash store.Key, err error) {
 // Join initiates a node lookup of itself to bootstrap the node into the
 // network.
 func (dht *DHT) Join(me route.Contact) (err error) {
-	contacts, err := dht.iterativeFindNodes(me.NodeID)
+	_, err = dht.iterativeFindNodes(me.NodeID)
 	if err != nil {
 		return
 	}
 
-	logAcquaintedWith(contacts...)
+	for id := range node.IDWithPrefixGenerator(me.NodeID) {
+		log.Debug().Msgf("Refresh bucket using random ID: %v", id)
+		_, err = dht.iterativeFindNodes(id)
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -246,12 +261,6 @@ func logStoredAt(hash store.Key, contacts ...route.Contact) {
 	log.Info().
 		Msgf("Stored value with hash %v at %d nodes:\n%s",
 			hash.String(), len(contacts), tabbedContactList(contacts...))
-}
-
-func logAcquaintedWith(contacts ...route.Contact) {
-	log.Info().
-		Msgf("Acquainted with %d nodes:\n%s",
-			len(contacts), tabbedContactList(contacts...))
 }
 
 func tabbedContactList(contacts ...route.Contact) (cl string) {
