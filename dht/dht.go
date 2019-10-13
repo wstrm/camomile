@@ -18,8 +18,9 @@ const α = 3                // Degree of parallelism.
 const k = route.BucketSize // Bucket size.
 
 const tExpire = 86410 * time.Second    // Time after which a key/value pair expires (TTL).
-const tReplicate = 3600 * time.Second  // Interval between Kademlia replication events.
+const tReplicate = 3600 * time.Second  // Interval between replication events.
 const tRepublish = 86400 * time.Second // Time after which the original publisher must republish a key/value pair.
+const tRefresh = 3600 * time.Second    // Time after which the routing table requests a refresh of an untouched bucket.
 
 type DHT struct {
 	rt *route.Table
@@ -29,8 +30,10 @@ type DHT struct {
 }
 
 func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT, err error) {
+	refreshTicker := time.NewTicker(60 * time.Second)
+
 	dht = new(DHT)
-	dht.rt, err = route.NewTable(me, others)
+	dht.rt, err = route.NewTable(me, others, tRefresh, refreshTicker)
 	if err != nil {
 		err = fmt.Errorf("cannot initialize routing table: %w", err)
 		return
@@ -66,6 +69,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.findValueRequestHandler()
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
+	go dht.refreshRequestHandler()
 
 	return
 }
@@ -91,12 +95,19 @@ func (dht *DHT) Put(value string) (hash store.Key, err error) {
 // Join initiates a node lookup of itself to bootstrap the node into the
 // network.
 func (dht *DHT) Join(me route.Contact) (err error) {
-	contacts, err := dht.iterativeFindNodes(me.NodeID)
+	_, err = dht.iterativeFindNodes(me.NodeID)
 	if err != nil {
 		return
 	}
 
-	logAcquaintedWith(contacts...)
+	for id := range node.IDWithPrefixGenerator(me.NodeID) {
+		log.Debug().Msgf("Refresh bucket using random ID: %v", id)
+		_, err = dht.iterativeFindNodes(id)
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -246,12 +257,6 @@ func logStoredAt(hash store.Key, contacts ...route.Contact) {
 	log.Info().
 		Msgf("Stored value with hash %v at %d nodes:\n%s",
 			hash.String(), len(contacts), tabbedContactList(contacts...))
-}
-
-func logAcquaintedWith(contacts ...route.Contact) {
-	log.Info().
-		Msgf("Acquainted with %d nodes:\n%s",
-			len(contacts), tabbedContactList(contacts...))
 }
 
 func tabbedContactList(contacts ...route.Contact) (cl string) {
