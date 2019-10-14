@@ -303,7 +303,7 @@ func TestLocalItemCh(t *testing.T) {
 	rHTicker := time.NewTicker(time.Second)
 	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400, iHTicker, rHTicker)
 
-	returnedChan := db.LocalItemCh()
+	returnedChan := db.ItemCh()
 	go func() { returnedChan <- "abc" }()
 	<-returnedChan
 }

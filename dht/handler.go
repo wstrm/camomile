@@ -102,7 +102,7 @@ func (dht *DHT) pongRequestHandler() {
 
 func (dht *DHT) republishRequestHandler() {
 	for {
-		value := <-dht.db.LocalItemCh()
+		value := <-dht.db.ItemCh()
 
 		log.Debug().Msgf("Republish request on value: %v", value)
 

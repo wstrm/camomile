@@ -97,8 +97,8 @@ func (db *Database) getReplicate() time.Time {
 	return time
 }
 
-// LocalItemCh returns the database communication channel.
-func (db *Database) LocalItemCh() chan string {
+// ItemCh returns the database communication channel.
+func (db *Database) ItemCh() chan string {
 	return db.ch
 }
 
