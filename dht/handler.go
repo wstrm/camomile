@@ -118,3 +118,17 @@ func (dht *DHT) pongRequestHandler() {
 		}
 	}
 }
+
+func (dht *DHT) republishRequestHandler() {
+	for {
+		value := <-dht.db.ItemCh()
+
+		log.Debug().Msgf("Republish request on value: %v", value)
+
+		_, err := dht.iterativeStore(value)
+		if err != nil {
+			log.Error().Err(err).
+				Msgf("Republish event failed for value: %v", value)
+		}
+	}
+}
