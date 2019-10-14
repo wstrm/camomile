@@ -86,6 +86,10 @@ func (dht *DHT) Get(hash store.Key) (value string, sender node.ID, err error) {
 // Put stores the provided value in the network and returns a key.
 func (dht *DHT) Put(value string) (hash store.Key, err error) {
 	hash, err = dht.iterativeStore(value)
+	if err != nil {
+		return
+	}
+	dht.db.AddLocalItem(hash, value)
 	return
 }
 

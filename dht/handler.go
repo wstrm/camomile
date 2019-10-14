@@ -106,7 +106,7 @@ func (dht *DHT) republishRequestHandler() {
 
 		log.Debug().Msgf("Republish request on value: %v", value)
 
-		_, err := dht.Put(value)
+		_, err := dht.iterativeStore(value)
 		if err != nil {
 			log.Error().Err(err).
 				Msgf("Republish event failed for value: %v", value)
