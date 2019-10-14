@@ -102,17 +102,14 @@ func (dht *DHT) pongRequestHandler() {
 
 func (dht *DHT) republishRequestHandler() {
 	for {
-		value := <- dht.db.LocalItemCh()
+		value := <-dht.db.LocalItemCh()
 
-		go func(val string) {
-			log.Debug().Msgf("Republish request on value: %v", val)
+		log.Debug().Msgf("Republish request on value: %v", value)
 
-			_, err := dht.Put(value)
-			if err != nil {
-				log.Error().Err(err).
-					Msgf("Republish event failed for value: %v", val)
-			}
-		}(value)
-
+		_, err := dht.Put(value)
+		if err != nil {
+			log.Error().Err(err).
+				Msgf("Republish event failed for value: %v", value)
+		}
 	}
 }
