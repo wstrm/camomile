@@ -73,3 +73,18 @@ HTTP/1.1 204 No Content
 Date: Mon, 07 Oct 2019 13:44:49 GMT
 Content-Length: 0
 ```
+
+## FAQ
+> Some nodes logs `sendto: invalid argument` when running the cluster script.
+
+Too many nodes running at the same host may result in a "Neighbour Table
+Overflow". To fix this, increase the kernels internal ARP cache size.
+
+These settings should be enough for a cluster of 50 nodes:
+```
+sysctl -w net.ipv4.neigh.default.gc_interval=3600
+sysctl -w net.ipv4.neigh.default.gc_stale_time=3600
+sysctl -w net.ipv4.neigh.default.gc_thresh1=1024
+sysctl -w net.ipv4.neigh.default.gc_thresh2=4096
+sysctl -w net.ipv4.neigh.default.gc_thresh3=8192
+```
