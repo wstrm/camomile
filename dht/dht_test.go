@@ -2,10 +2,15 @@ package dht
 
 import (
 	"bytes"
+	"io/ioutil"
+	stdlog "log"
 	"math/rand" // Insecure on purpose due to testing.
 	"net"
 	"sync/atomic"
 	"testing"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
@@ -50,6 +55,12 @@ var others []route.Contact
 var me route.Contact
 
 func init() {
+	// Disable all logging.
+	logger := zerolog.New(ioutil.Discard).With().Timestamp().Logger()
+	log.Logger = logger
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(ioutil.Discard)
+
 	id := node.NewID()
 	me = route.NewContact(id, net.UDPAddr{
 		IP:   net.IP{10, 10, 10, 254},

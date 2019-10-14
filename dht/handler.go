@@ -6,6 +6,25 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func (dht *DHT) refreshRequestHandler() {
+	for {
+		index := <-dht.rt.RefreshCh()
+
+		log.Debug().Msgf("Refresh request for bucket: %d", index)
+
+		id := node.NewIDWithPrefix(dht.me.NodeID, index)
+
+		log.Debug().Msgf("Refresh bucket %d using random ID: %v", index, id)
+
+		_, err := dht.iterativeFindNodes(id)
+		if err != nil {
+			log.Error().Err(err).
+				Msgf("Refresh failed for bucket: %d using random ID: %v",
+					index, id)
+		}
+	}
+}
+
 func (dht *DHT) findValueRequestHandler() {
 	for {
 		request := <-dht.nw.FindValueRequestCh()

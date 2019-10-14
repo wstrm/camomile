@@ -147,10 +147,15 @@ func (db *Database) AddLocalItem(key Key, value string) {
 }
 
 // GetItem returns an item stored on this node that originated from the kademlia network.
+// Also updates the expiration time of the item.
 func (db *Database) GetItem(key Key) (reqItem item, err error) {
-	db.remoteItems.RLock()
+	newExpirationTime := time.Now().Add(db.tExpire)
+
+	db.remoteItems.Lock()
 	requestedItem, found := db.remoteItems.m[key]
-	db.remoteItems.RUnlock()
+	requestedItem.expire = newExpirationTime
+	db.remoteItems.m[key] = requestedItem
+	db.remoteItems.Unlock()
 
 	if !found {
 		err = fmt.Errorf("store: GetItem, no item matching key: %v", key)
