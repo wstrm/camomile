@@ -18,17 +18,17 @@ type Key node.ID
 // item is an item stored by the kademlia network on this node.
 // This contains timers that decide the retention of the object along with the stored value and identifier of the node that made the store request to the network initially.
 type item struct {
-	Value     string
-	expire    time.Time
-	republish time.Time
-	origPub   node.ID
+	value   string
+	expire  time.Time
+	origPub node.ID
 }
 
-// localItem contains a timer and the value that this node has stored on the kademlia network.
-type localItem struct {
-	Value     string
-	repubTime time.Time
-}
+//// localItem contains a timer and the value that this node has stored on the kademlia network.
+//type localItem struct {
+//	value     string
+//	key       Key
+//	repubTime time.Time
+//}
 
 // remoteItems holds multiple items, and a Mutex lock for the datastructure.
 type remoteItems struct {
@@ -39,7 +39,7 @@ type remoteItems struct {
 // localItems holds multiple local items, and a Mutex lock for the datastructure.
 type localItems struct {
 	sync.RWMutex
-	m map[Key]localItem
+	m map[Key]time.Time
 }
 
 // replicate stores the time at which to run the database replication event, protected by a Mutex lock.
@@ -54,7 +54,8 @@ type replicate struct {
 type Database struct {
 	remoteItems remoteItems
 	localItems  localItems
-	ch          chan string // only needs to return string value
+	replicateCh chan string // only needs to return string value
+	republishCh chan Key    // only needs to return string value
 	replicate   replicate
 	tExpire     time.Duration
 	tReplicate  time.Duration
@@ -72,8 +73,9 @@ func NewDatabase(tExpire, tReplicate, tRepublish time.Duration, iHTicker, rHTick
 	db.setReplicate()
 
 	db.remoteItems = remoteItems{m: make(map[Key]item)}
-	db.localItems = localItems{m: make(map[Key]localItem)}
-	db.ch = make(chan string)
+	db.localItems = localItems{m: make(map[Key]time.Time)}
+	db.replicateCh = make(chan string)
+	db.republishCh = make(chan Key)
 
 	go db.itemHandler(iHTicker)
 	go db.republishHandler(rHTicker)
@@ -97,9 +99,14 @@ func (db *Database) getReplicate() time.Time {
 	return time
 }
 
-// ItemCh returns the database communication channel.
-func (db *Database) ItemCh() chan string {
-	return db.ch
+// ReplicateCh returns the replication communication channel.
+func (db *Database) ReplicateCh() chan string {
+	return db.replicateCh
+}
+
+// RepublishCh returns the replication communication channel.
+func (db *Database) RepublishCh() chan Key {
+	return db.republishCh
 }
 
 // truncate truncates supplied string to a maximum of a 1000 characters. Returns a string.
@@ -111,19 +118,25 @@ func truncate(s string) string {
 }
 
 // AddItem adds an value to the remoteItems database that a node in the kademlia network has sent to this node.
-func (db *Database) AddItem(value string, origPub node.ID) {
-	t := time.Now()
-	expire := t.Add(db.tExpire)
-	republish := t.Add(db.tRepublish)
-
+func (db *Database) AddItem(value string) {
 	key := Key(blake2b.Sum256([]byte(truncate(value))))
+
+	db.remoteItems.RLock()
+	_, ok := db.remoteItems.m[key]
+	db.remoteItems.RUnlock()
+
+	if ok {
+		return // Do not re-add already existing items.
+	}
+
+	t := time.Now()
+	log.Debug().Msg("Adding new value with expiry")
+	expire := t.Add(db.tExpire)
 
 	newItem := item{}
 
-	newItem.Value = truncate(value)
+	newItem.value = truncate(value)
 	newItem.expire = expire
-	newItem.republish = republish
-	newItem.origPub = origPub
 
 	db.remoteItems.Lock()
 	db.remoteItems.m[key] = newItem
@@ -133,51 +146,36 @@ func (db *Database) AddItem(value string, origPub node.ID) {
 }
 
 // AddLocalItem adds an value to the local item database that this node has requested to be stored on the kademlia network.
-func (db *Database) AddLocalItem(key Key, value string) {
+func (db *Database) AddLocalItem(key Key) {
 	t := time.Now()
 
-	newLocalItem := localItem{}
-
-	newLocalItem.Value = value
-	newLocalItem.repubTime = t.Add(db.tRepublish)
+	date := t.Add(db.tRepublish)
 
 	db.localItems.Lock()
-	db.localItems.m[key] = newLocalItem
+	db.localItems.m[key] = date
 	db.localItems.Unlock()
 }
 
 // GetItem returns an item stored on this node that originated from the kademlia network.
 // Also updates the expiration time of the item.
-func (db *Database) GetItem(key Key) (reqItem item, err error) {
+func (db *Database) GetValue(key Key) (value string, err error) {
 	newExpirationTime := time.Now().Add(db.tExpire)
 
 	db.remoteItems.Lock()
-	requestedItem, found := db.remoteItems.m[key]
-	requestedItem.expire = newExpirationTime
-	db.remoteItems.m[key] = requestedItem
-	db.remoteItems.Unlock()
+	defer db.remoteItems.Unlock()
 
+	log.Debug().Msg("Updating value with expiry")
+
+	requestedItem, found := db.remoteItems.m[key]
 	if !found {
 		err = fmt.Errorf("store: GetItem, no item matching key: %v", key)
 		return
 	}
 
-	return requestedItem, nil
-}
+	requestedItem.expire = newExpirationTime
+	db.remoteItems.m[key] = requestedItem
 
-// GetLocalItem return a stored local item to the republishing function.
-// Throws an error if no match is found in the local item DB.
-func (db *Database) GetLocalItem(key Key) (reqLocalItem localItem, err error) {
-	db.localItems.RLock()
-	localItem, found := db.localItems.m[key]
-	db.localItems.RUnlock()
-
-	if !found {
-		err = fmt.Errorf("store: GetLocalItem, no localItem matching key: %v", key)
-		return
-	}
-
-	return localItem, nil
+	return requestedItem.value, nil
 }
 
 // evictItem evicts an item that other nodes has stored on this node.
@@ -204,13 +202,14 @@ func (db *Database) itemHandler(ticker *time.Ticker) {
 
 		db.remoteItems.RLock()
 		for key, item := range db.remoteItems.m {
-			if now.After(item.expire) || now.After(item.republish) {
+			if now.After(item.expire) {
 				evictees = append(evictees, key)
 			}
 		}
 		db.remoteItems.RUnlock()
 
 		for _, key := range evictees {
+			log.Debug().Msg("Evicting")
 			db.evictItem(key)
 		}
 	}
@@ -222,19 +221,22 @@ func (db *Database) republishHandler(ticker *time.Ticker) {
 	for now := range ticker.C {
 		replicate := now.After(db.getReplicate())
 
-		db.localItems.RLock()
-		for _, localItem := range db.localItems.m {
-			if now.After(localItem.repubTime) {
-				db.ch <- localItem.Value
+		db.localItems.Lock()
+		for key, date := range db.localItems.m {
+			if now.After(date) {
+				date = now.Add(db.tRepublish)
+				db.localItems.m[key] = date
+				db.republishCh <- key
 			}
 		}
-		db.localItems.RUnlock()
+		db.localItems.Unlock()
 
 		// Replication event, replicate all stored values to k nodes.
 		if replicate {
 			db.remoteItems.RLock()
 			for _, remoteItem := range db.remoteItems.m {
-				db.ch <- remoteItem.Value
+				log.Debug().Msgf("%v", remoteItem)
+				db.replicateCh <- remoteItem.value
 			}
 			db.remoteItems.RUnlock()
 		}

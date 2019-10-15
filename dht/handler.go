@@ -10,11 +10,7 @@ func (dht *DHT) refreshRequestHandler() {
 	for {
 		index := <-dht.rt.RefreshCh()
 
-		log.Debug().Msgf("Refresh request for bucket: %d", index)
-
 		id := node.NewIDWithPrefix(dht.me.NodeID, index)
-
-		log.Debug().Msgf("Refresh bucket %d using random ID: %v", index, id)
 
 		_, err := dht.iterativeFindNodes(id)
 		if err != nil {
@@ -39,16 +35,16 @@ func (dht *DHT) findValueRequestHandler() {
 		target := node.ID(request.Key)
 
 		// Try to fetch the value from the local storage.
-		item, err := dht.db.GetItem(request.Key)
+		value, err := dht.db.GetValue(request.Key)
 		if err != nil {
 			// No luck.
 			// Fetch this nodes contacts that are closest to the requested key.
 			closest = dht.rt.NClosest(target, k).SortedContacts()
 		} else {
-			log.Debug().Msgf("Found value: %s", item.Value)
+			log.Debug().Msgf("Found value: %s", value)
 		}
 
-		err = dht.nw.SendValue(request.Key, item.Value, closest,
+		err = dht.nw.SendValue(request.Key, value, closest,
 			request.SessionID, request.From.Address)
 		if err != nil {
 			log.Error().Err(err).
@@ -92,7 +88,7 @@ func (dht *DHT) storeRequestHandler() {
 		// table.
 		go dht.addNode(request.From)
 
-		dht.db.AddItem(request.Value, request.From.NodeID)
+		dht.db.AddItem(request.Value)
 	}
 }
 
@@ -119,16 +115,30 @@ func (dht *DHT) pongRequestHandler() {
 	}
 }
 
-func (dht *DHT) republishRequestHandler() {
+func (dht *DHT) replicateRequestHandler() {
 	for {
-		value := <-dht.db.ItemCh()
+		value := <-dht.db.ReplicateCh()
 
-		log.Debug().Msgf("Republish request on value: %v", value)
+		log.Info().Msgf("Replicate request for value: %v", value)
 
 		_, err := dht.iterativeStore(value)
 		if err != nil {
 			log.Error().Err(err).
-				Msgf("Republish event failed for value: %v", value)
+				Msgf("Replicate event failed for value: %v", value)
+		}
+	}
+}
+
+func (dht *DHT) republishRequestHandler() {
+	for {
+		hash := <-dht.db.RepublishCh()
+
+		log.Info().Msgf("Republish request for key: %v", hash)
+
+		_, _, err := dht.iterativeFindValue(hash)
+		if err != nil {
+			log.Error().Err(err).
+				Msgf("Republish event failed for key: %v", hash)
 		}
 	}
 }

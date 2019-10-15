@@ -17,10 +17,10 @@ import (
 const α = 3                // Degree of parallelism.
 const k = route.BucketSize // Bucket size.
 
-const tExpire = 86410 * time.Second    // Time after which a key/value pair expires (TTL).
-const tReplicate = 3600 * time.Second  // Interval between replication events.
-const tRepublish = 86400 * time.Second // Time after which the original publisher must republish a key/value pair.
-const tRefresh = 3600 * time.Second    // Time after which the routing table requests a refresh of an untouched bucket.
+const tExpire = 90 * time.Second    // Time after which a key/value pair expires (TTL).
+const tReplicate = 40 * time.Second // Interval between replication events.
+const tRepublish = 80 * time.Second // Time after which the original publisher must republish a key/value pair.
+const tRefresh = 3600 * time.Second // Time after which the routing table requests a refresh of an untouched bucket.
 
 type DHT struct {
 	rt *route.Table
@@ -70,6 +70,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
 	go dht.republishRequestHandler()
+	go dht.replicateRequestHandler()
 	go dht.refreshRequestHandler()
 
 	return
@@ -93,7 +94,7 @@ func (dht *DHT) Put(value string) (hash store.Key, err error) {
 	if err != nil {
 		return
 	}
-	dht.db.AddLocalItem(hash, value)
+	dht.db.AddLocalItem(hash)
 	return
 }
 
@@ -106,7 +107,6 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	}
 
 	for id := range node.IDWithPrefixGenerator(me.NodeID) {
-		log.Debug().Msgf("Refresh bucket using random ID: %v", id)
 		_, err = dht.iterativeFindNodes(id)
 		if err != nil {
 			return
@@ -155,7 +155,6 @@ func (dht *DHT) addNode(contact route.Contact) {
 
 	ok := rt.Add(contact)
 	if ok {
-		log.Debug().Msgf("Added node: %v to routing table", contact.NodeID)
 		return
 	}
 
