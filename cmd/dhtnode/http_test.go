@@ -11,6 +11,7 @@ import (
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
+	"github.com/rs/zerolog/log"
 )
 
 func TestHTTPHandler(t *testing.T) {
@@ -31,7 +32,10 @@ func TestHTTPHandler(t *testing.T) {
 	dht, _ := dht.New(me, others, nw)
 
 	go func() {
-		_ := nw.Listen()
+		err := nw.Listen()
+		if err != nil {
+			log.Error(err)
+		}
 	}()
 
 	handler := newHTTPHandler(dht)
@@ -89,10 +93,16 @@ func TestNewHTTPHandler(t *testing.T) {
 	dht, _ := dht.New(me, others, nw)
 
 	go func() {
-		_ := nw.Listen()
+		err := nw.Listen()
+		if err != nil {
+			log.Error(err)
+		}
 	}()
 
 	go httpServe(dht)
 
-	_, _ := http.Get(defaultHTTPAddress)
+	_, err := http.Get(defaultHTTPAddress)
+	if err != nil {
+		t.Errorf("unexpected response: %v", err)
+	}
 }
