@@ -31,7 +31,7 @@ func TestHTTPHandler(t *testing.T) {
 	dht, _ := dht.New(me, others, nw)
 
 	go func() {
-		nw.Listen()
+		_ := nw.Listen()
 	}()
 
 	handler := newHTTPHandler(dht)
@@ -89,10 +89,10 @@ func TestNewHTTPHandler(t *testing.T) {
 	dht, _ := dht.New(me, others, nw)
 
 	go func() {
-		nw.Listen()
+		_ := nw.Listen()
 	}()
 
 	go httpServe(dht)
 
-	http.Get(defaultHTTPAddress)
+	_, _ := http.Get(defaultHTTPAddress)
 }
