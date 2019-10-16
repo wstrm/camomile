@@ -246,7 +246,7 @@ func TestStore(t *testing.T) {
 	value := "ABC, du är mina tankar"
 	key := store.Key{1}
 
-	err := n.Store(key, value, *mAddr)
+	err := n.Store(key, value, StoreClassPublish, *mAddr)
 	if err != nil {
 		t.Error(err)
 	}

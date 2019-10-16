@@ -423,3 +423,27 @@ func TestRefreshCh(t *testing.T) {
 		exp++
 	}
 }
+
+func TestCentrality(t *testing.T) {
+	me := Contact{NodeID: zeroID()}
+
+	var others []Contact
+	for i := 0; i < 254; i++ {
+		others = append(others, Contact{NodeID: makeID([]byte{byte(i)})})
+	}
+
+	rt, _ := NewTable(me, others,
+		time.Second, time.NewTicker(time.Second))
+
+	c := rt.Centrality(zeroID())
+	exp := 127
+	if c != exp {
+		t.Errorf("unexpected centrality, got: %d, exp: %d", c, exp)
+	}
+
+	c = rt.Centrality(makeID([]byte{byte(254)}))
+	exp = 64
+	if c != exp {
+		t.Errorf("unexpected centrality, got: %d, exp: %d", c, exp)
+	}
+}

@@ -23,8 +23,9 @@ message Pong {
 }
 
 message Store {
-  bytes key = 1;
-  string value = 2;
+  StoreClass class = 1;
+  bytes key = 2;
+  string value = 3;
 }
 
 message Value {
@@ -49,4 +50,10 @@ message NodeInfo {
 
 message NodeList {
   repeated NodeInfo nodes = 1;
+}
+
+enum StoreClass {
+  UNKNOWN = 0;
+  PUBLISH = 1;
+  REPLICATE = 2;
 }
