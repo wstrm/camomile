@@ -38,11 +38,11 @@ func TestRPCServe(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(2 * time.Second) // TODO: Remove this.
+	time.Sleep(5 * time.Second) // TODO: Remove this.
 
 	go rpcServe(dht)
 
-	time.Sleep(1 * time.Second) // TODO: Remove this.
+	time.Sleep(5 * time.Second) // TODO: Remove this.
 
 	client, err := rpc.DialHTTP("tcp", defaultRPCAddress)
 	if err != nil {
