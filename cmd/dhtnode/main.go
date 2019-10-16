@@ -34,15 +34,9 @@ func flagSplit(flag string) (string, string) {
 	return nodeID, address
 }
 
-func main() {
-	meFlag := flag.String("me", "", "Defaults to an auto generated ID, IP defaults to localhost")
-	otherFlag := flag.String("other", "", "Waits for incoming connections if not supplied")
-	debugFlag := flag.Bool("debug", false, "Print debug logs")
-	logFilepathFlag := flag.String("log", "/tmp/dhtnode.log", "File to output logs to")
-	flag.Parse()
-
+func setupLogger(debug bool, logFilepath string) zerolog.Logger {
 	var console io.Writer
-	if *debugFlag {
+	if debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 		// Pretty print logs instead of JSON.
@@ -51,8 +45,6 @@ func main() {
 			NoColor:    true,
 		}
 	} else {
-		logFilepath := *logFilepathFlag
-
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		// Unix timestamps are quicker.
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -74,6 +66,18 @@ func main() {
 	// Make sure the standard logger also uses zerolog.
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(logger)
+
+	return logger
+}
+
+func main() {
+	meFlag := flag.String("me", "", "Defaults to an auto generated ID, IP defaults to localhost")
+	otherFlag := flag.String("other", "", "Waits for incoming connections if not supplied")
+	debugFlag := flag.Bool("debug", false, "Print debug logs")
+	logFilepathFlag := flag.String("log", "/tmp/dhtnode.log", "File to output logs to")
+	flag.Parse()
+
+	logger := setupLogger(*debugFlag, *logFilepathFlag)
 
 	address, err := net.ResolveUDPAddr("udp", defaultDHTAddress)
 	if err != nil {

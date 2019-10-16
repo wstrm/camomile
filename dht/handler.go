@@ -18,9 +18,7 @@ func (dht *DHT) refreshRequestHandler() {
 
 		_, err := dht.iterativeFindNodes(id)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Refresh failed for bucket: %d using random ID: %v",
-					index, id)
+			log.Error().Err(err).Msgf("Refresh failed for bucket: %d using random ID: %v", index, id)
 		}
 	}
 }

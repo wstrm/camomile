@@ -2,6 +2,11 @@ package main
 
 import "testing"
 
+func init() {
+	setupLogger(true, "/tmp/somewhere")
+	setupLogger(false, "/tmp/somewhere")
+}
+
 func TestFlagSplit(t *testing.T) {
 	a, b := flagSplit("hej@då")
 	if a != "hej" {
