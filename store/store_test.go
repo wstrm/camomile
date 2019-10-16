@@ -33,7 +33,7 @@ func TestItemsAdd(t *testing.T) {
 	// No touchy.
 	testItemCopy := storedTestItem
 	db.AddItem(testKey, "something else", 1, 1, false)
-	storedTestItem, err = db.GetItem(trueHash)
+	storedTestItem, _ = db.GetItem(trueHash)
 
 	if testItemCopy.Value != storedTestItem.Value {
 		t.Errorf("unexpected value, should be the same")
