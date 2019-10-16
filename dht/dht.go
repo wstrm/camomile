@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"golang.org/x/crypto/blake2b"
 
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
@@ -70,6 +69,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 	go dht.storeRequestHandler()
 	go dht.pongRequestHandler()
 	go dht.republishRequestHandler()
+	go dht.replicateRequestHandler()
 	go dht.refreshRequestHandler()
 
 	return
@@ -89,7 +89,7 @@ func (dht *DHT) Get(hash store.Key) (value string, sender node.ID, err error) {
 
 // Put stores the provided value in the network and returns a key.
 func (dht *DHT) Put(value string) (hash store.Key, err error) {
-	hash, err = dht.iterativeStore(value)
+	hash, err = dht.iterativeStore(value, network.StoreClassPublish)
 	if err != nil {
 		return
 	}
@@ -195,8 +195,8 @@ func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
 	return dht.walk(NewFindNodesCall(target))
 }
 
-func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
-	hash = blake2b.Sum256([]byte(value))
+func (dht *DHT) iterativeStore(value string, class network.StoreClass) (hash store.Key, err error) {
+	hash = store.KeyFromValue(value)
 
 	contacts, err := dht.iterativeFindNodes(node.ID(hash))
 	if err != nil {
@@ -210,7 +210,7 @@ func (dht *DHT) iterativeStore(value string) (hash store.Key, err error) {
 
 	var stored []route.Contact
 	for _, contact := range contacts {
-		if e := dht.nw.Store(hash, value, contact.Address); e != nil {
+		if e := dht.nw.Store(hash, value, class, contact.Address); e != nil {
 			logFailedStoreAt(contact, e)
 		} else {
 			stored = append(stored, contact)
@@ -243,7 +243,7 @@ func (dht *DHT) iterativeFindValue(hash store.Key) (value string, sender node.ID
 	// Store at the closest node that did not return any value.
 	if len(closest) > 0 {
 		first := closest[0]
-		if e := dht.nw.Store(hash, value, first.Address); e != nil {
+		if e := dht.nw.Store(hash, value, network.StoreClassReplicate, first.Address); e != nil {
 			logFailedStoreAt(first, e)
 		} else {
 			logStoredAt(hash, first)

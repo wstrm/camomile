@@ -141,6 +141,12 @@ func (b *bucket) contacts(id node.ID) (c Contacts) {
 	return
 }
 
+func (b *bucket) len() int {
+	b.rw.RLock()
+	defer b.rw.RUnlock()
+	return b.Len()
+}
+
 // Add finds the correct bucket to add the contact to and inserts the contact.
 // It will return false if the bucket is full.
 func (rt *Table) Add(c Contact) (ok bool) {
@@ -170,6 +176,28 @@ func (rt *Table) Remove(id node.ID) {
 	d := distance(rt.me.NodeID, id)
 	b := rt.buckets[d.BucketIndex()]
 	b.remove(id)
+}
+
+// Centrality returns the centrality metric according to the formula:
+//	Let:
+//		Ca = Number of contacts in the bucket corresponding to the target.
+//		Cb = Number of contacts in the buckets further away from the target.
+//	Then, the centrality, C is:
+//		C = Ca + Cb.
+func (rt *Table) Centrality(target node.ID) int {
+	d := distance(rt.me.NodeID, target)
+	index := d.BucketIndex()
+	b := rt.buckets[index]
+
+	cb := b.len()
+
+	ca := 0
+	for i := 0; i <= index; i++ {
+		b = rt.buckets[i]
+		ca += b.len()
+	}
+
+	return ca + cb
 }
 
 // NClosest finds the N closest nodes for a provided node ID.
