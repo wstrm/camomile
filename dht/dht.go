@@ -54,9 +54,7 @@ func New(me route.Contact, others []route.Contact, nw network.Network) (dht *DHT
 		for {
 			err := dht.Join(me)
 			if err != nil {
-				log.Error().Err(err).
-					Msgf("Failed to join the DHT network, retrying in %v",
-						retryInterval)
+				log.Error().Err(err).Msgf("Failed to join the DHT network, retrying in %v", retryInterval)
 			} else {
 				break // Join successful, exit retry loop.
 			}
@@ -171,8 +169,7 @@ func (dht *DHT) addNode(contact route.Contact) {
 	_, err := dht.Ping(old)
 
 	if err != nil {
-		log.Debug().
-			Msgf("Ping failed for old node: %v, error: %v:", old, err)
+		log.Debug().Msgf("Ping failed for old node: %v, error: %v:", old, err)
 
 		// Either challenge mismatch or dead node, remove it.
 		rt.Remove(old)
@@ -180,15 +177,12 @@ func (dht *DHT) addNode(contact route.Contact) {
 		// Re-try to add new node.
 		ok = rt.Add(contact)
 		if !ok {
-			log.Warn().
-				Msg("Unable to add new node even after old node was evicted")
+			log.Warn().Msg("Unable to add new node even after old node was evicted")
 		}
 		return
 	}
 
-	log.Debug().
-		Msgf("Old node: %v responded, ignoring new node: %v",
-			old, contact.NodeID)
+	log.Debug().Msgf("Old node: %v responded, ignoring new node: %v", old, contact.NodeID)
 }
 
 func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {
@@ -259,9 +253,7 @@ func logFailedStoreAt(contact route.Contact, err error) {
 }
 
 func logStoredAt(hash store.Key, contacts ...route.Contact) {
-	log.Info().
-		Msgf("Stored value with hash %v at %d nodes:\n%s",
-			hash.String(), len(contacts), tabbedContactList(contacts...))
+	log.Info().Msgf("Stored value with hash %v at %d nodes:\n%s", hash.String(), len(contacts), tabbedContactList(contacts...))
 }
 
 func tabbedContactList(contacts ...route.Contact) (cl string) {
