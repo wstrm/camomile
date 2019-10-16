@@ -104,7 +104,6 @@ func (dht *DHT) Join(me route.Contact) (err error) {
 	}
 
 	for id := range node.IDWithPrefixGenerator(me.NodeID) {
-		log.Debug().Msgf("Refresh bucket using random ID: %v", id)
 		_, err = dht.iterativeFindNodes(id)
 		if err != nil {
 			return
@@ -153,24 +152,16 @@ func (dht *DHT) addNode(contact route.Contact) {
 
 	ok := rt.Add(contact)
 	if ok {
-		log.Debug().Msgf("Added node: %v to routing table", contact.NodeID)
 		return
 	}
 
-	log.Debug().Msgf("Full bucket for node: %v", contact.NodeID)
-
 	old := rt.Head(contact.NodeID).NodeID
-
-	log.Debug().Msgf("Pinging old node: %v", old)
-
 	// Check if the oldest node is still alive.
 	// If the node answers, it'll be moved to the top of the bucket by the Ping
 	// method.
 	_, err := dht.Ping(old)
 
 	if err != nil {
-		log.Debug().Msgf("Ping failed for old node: %v, error: %v:", old, err)
-
 		// Either challenge mismatch or dead node, remove it.
 		rt.Remove(old)
 
@@ -181,8 +172,6 @@ func (dht *DHT) addNode(contact route.Contact) {
 		}
 		return
 	}
-
-	log.Debug().Msgf("Old node: %v responded, ignoring new node: %v", old, contact.NodeID)
 }
 
 func (dht *DHT) iterativeFindNodes(target node.ID) ([]route.Contact, error) {

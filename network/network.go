@@ -342,8 +342,6 @@ func (u *udpNetwork) Listen() (err error) {
 	for {
 		n, addr, err := u.conn.ReadFromUDP(buffer)
 
-		log.Debug().Msgf("Received packet from: %v", addr)
-
 		if err != nil {
 			log.Error().Err(err).Msgf("Error when reading from UDP from address %v: %s", addr, err)
 			continue
