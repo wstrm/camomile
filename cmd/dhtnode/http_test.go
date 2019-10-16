@@ -75,7 +75,7 @@ func TestHTTPHandler(t *testing.T) {
 }
 
 func TestNewHTTPHandler(t *testing.T) {
-	local, _ := net.ResolveUDPAddr("udp", "localhost:1234")
+	local, _ := net.ResolveUDPAddr("udp", "localhost:1235")
 	me := route.Contact{
 		NodeID:  node.NewID(),
 		Address: *local,
@@ -100,7 +100,7 @@ func TestNewHTTPHandler(t *testing.T) {
 
 	go httpServe(dht)
 
-	_, err := http.Get("http://" + defaultHTTPAddress)
+	_, err := http.Get("http://localhost" + defaultHTTPAddress)
 	if err != nil {
 		t.Errorf("unexpected response: %v", err)
 	}
