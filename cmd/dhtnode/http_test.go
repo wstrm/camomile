@@ -14,7 +14,7 @@ import (
 )
 
 func TestHTTPHandler(t *testing.T) {
-	local, _ := net.ResolveUDPAddr("udp", "localhost:1234")
+	local, _ := net.ResolveUDPAddr("udp", "localhost:1239")
 	me := route.Contact{
 		NodeID:  node.NewID(),
 		Address: *local,
