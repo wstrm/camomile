@@ -100,7 +100,7 @@ func TestNewHTTPHandler(t *testing.T) {
 
 	go httpServe(dht)
 
-	_, err := http.Get(defaultHTTPAddress)
+	_, err := http.Get("http://" + defaultHTTPAddress)
 	if err != nil {
 		t.Errorf("unexpected response: %v", err)
 	}
