@@ -18,9 +18,7 @@ func (dht *DHT) refreshRequestHandler() {
 
 		_, err := dht.iterativeFindNodes(id)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Refresh failed for bucket: %d using random ID: %v",
-					index, id)
+			log.Error().Err(err).Msgf("Refresh failed for bucket: %d using random ID: %v", index, id)
 		}
 	}
 }
@@ -51,9 +49,7 @@ func (dht *DHT) findValueRequestHandler() {
 		err = dht.nw.SendValue(request.Key, item.Value, closest,
 			request.SessionID, request.From.Address)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Send value network call failed for: %v",
-					request.From.Address)
+			log.Error().Err(err).Msgf("Send value network call failed for: %v", request.From.Address)
 		}
 	}
 }
@@ -74,10 +70,7 @@ func (dht *DHT) findNodesRequestHandler() {
 		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
 		if err != nil {
 			log.
-				Error().
-				Err(err).
-				Msgf("Find nodes network call failed for: %v",
-					request.From.Address)
+				Error().Err(err).Msgf("Find nodes network call failed for: %v", request.From.Address)
 		}
 	}
 }
@@ -112,9 +105,7 @@ func (dht *DHT) pongRequestHandler() {
 			request.SessionID,
 			request.From.Address)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Pong network call failed for: %v",
-					request.From.Address)
+			log.Error().Err(err).Msgf("Pong network call failed for: %v", request.From.Address)
 		}
 	}
 }
@@ -127,8 +118,7 @@ func (dht *DHT) republishRequestHandler() {
 
 		_, err := dht.iterativeStore(value)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Republish event failed for value: %v", value)
+			log.Error().Err(err).Msgf("Republish event failed for value: %v", value)
 		}
 	}
 }
