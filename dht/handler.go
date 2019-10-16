@@ -50,12 +50,9 @@ func (dht *DHT) findValueRequestHandler() {
 			log.Debug().Msgf("Found value: %s", item.Value)
 		}
 
-		err = dht.nw.SendValue(request.Key, item.Value, closest,
-			request.SessionID, request.From.Address)
+		err = dht.nw.SendValue(request.Key, item.Value, closest, request.SessionID, request.From.Address)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Send value network call failed for: %v",
-					request.From.Address)
+			log.Error().Err(err).Msgf("Send value network call failed for: %v", request.From.Address)
 		}
 	}
 }
@@ -111,8 +108,7 @@ func (dht *DHT) pongRequestHandler() {
 	for {
 		request := <-dht.nw.PongRequestCh()
 
-		log.Printf("Pong request from: %v (%x)",
-			request.From.NodeID, request.Challenge)
+		log.Printf("Pong request from: %v (%x)", request.From.NodeID, request.Challenge)
 
 		// Add node so it is moved to the top of its bucket in the routing
 		// table.
@@ -123,9 +119,7 @@ func (dht *DHT) pongRequestHandler() {
 			request.SessionID,
 			request.From.Address)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Pong network call failed for: %v",
-					request.From.Address)
+			log.Error().Err(err).Msgf("Pong network call failed for: %v", request.From.Address)
 		}
 	}
 }
@@ -138,8 +132,7 @@ func (dht *DHT) replicateRequestHandler() {
 
 		_, err := dht.iterativeStore(item.Value, network.StoreClassReplicate)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Replicate event failed for value: %v", item)
+			log.Error().Err(err).Msgf("Replicate event failed for value: %v", item)
 		}
 	}
 }
@@ -152,8 +145,7 @@ func (dht *DHT) republishRequestHandler() {
 
 		_, err := dht.iterativeStore(item.Value, network.StoreClassPublish)
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Republish event failed for value: %v", item)
+			log.Error().Err(err).Msgf("Republish event failed for value: %v", item)
 		}
 	}
 }

@@ -63,9 +63,7 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 
 			ch, err := call.Do(nw, contact.Address)
 			if err != nil {
-				log.Error().Err(err).
-					Msgf("Unable to dial: %v, removing from candidates...",
-						contact.NodeID)
+				log.Error().Err(err).Msgf("Unable to dial: %v, removing from candidates...", contact.NodeID)
 
 				sl.Remove(contact)
 			} else {
@@ -108,9 +106,7 @@ func (dht *DHT) walk(call Call) ([]route.Contact, error) {
 				}
 			} else {
 				// Network response timed out.
-				log.Warn().
-					Msgf("Network response from: %v timed out, removing from candidates...",
-						callee.NodeID)
+				log.Warn().Msgf("Network response from: %v timed out, removing from candidates...", callee.NodeID)
 
 				// Remove the callee from the candidates.
 				sl.Remove(callee)
