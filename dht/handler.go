@@ -75,11 +75,7 @@ func (dht *DHT) findNodesRequestHandler() {
 
 		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
 		if err != nil {
-			log.
-				Error().
-				Err(err).
-				Msgf("Find nodes network call failed for: %v",
-					request.From.Address)
+			log.Error().Err(err).Msgf("Find nodes network call failed for: %v", request.From.Address)
 		}
 	}
 }
