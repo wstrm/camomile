@@ -11,7 +11,6 @@ import (
 	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
-	"github.com/rs/zerolog/log"
 )
 
 func TestHTTPHandler(t *testing.T) {
@@ -34,7 +33,7 @@ func TestHTTPHandler(t *testing.T) {
 	go func() {
 		err := nw.Listen()
 		if err != nil {
-			log.Error(err)
+			t.Error(err)
 		}
 	}()
 
@@ -95,7 +94,7 @@ func TestNewHTTPHandler(t *testing.T) {
 	go func() {
 		err := nw.Listen()
 		if err != nil {
-			log.Error(err)
+			t.Error(err)
 		}
 	}()
 
