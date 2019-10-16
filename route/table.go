@@ -141,6 +141,7 @@ func (b *bucket) contacts(id node.ID) (c Contacts) {
 	return
 }
 
+// len returns the number of contacts in the bucket.
 func (b *bucket) len() int {
 	b.rw.RLock()
 	defer b.rw.RUnlock()
