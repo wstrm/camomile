@@ -163,7 +163,7 @@ func (net *udpNetwork) SendValue(key store.Key, value string, closets []route.Co
 func (net *udpNetwork) SendNodes(closets []route.Contact, sessionID network.SessionID, addr net.UDPAddr) error {
 	return nil
 }
-func (net *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error {
+func (net *udpNetwork) Store(key store.Key, value string, class network.StoreClass, addr net.UDPAddr) error {
 	return nil
 }
 func (net *udpNetwork) StoreRequestCh() chan *network.StoreRequest         { return nil }
@@ -239,9 +239,4 @@ func TestForget(t *testing.T) {
 	}
 
 	d.Forget(hash)
-
-	_, err := d.db.GetLocalItem(hash)
-	if err == nil {
-		t.Error("expected error, value still in local item db after forget")
-	}
 }

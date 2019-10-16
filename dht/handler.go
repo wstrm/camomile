@@ -1,8 +1,10 @@
 package dht
 
 import (
+	"github.com/optmzr/d7024e-dht/network"
 	"github.com/optmzr/d7024e-dht/node"
 	"github.com/optmzr/d7024e-dht/route"
+	"github.com/optmzr/d7024e-dht/store"
 	"github.com/rs/zerolog/log"
 )
 
@@ -69,8 +71,7 @@ func (dht *DHT) findNodesRequestHandler() {
 
 		err := dht.nw.SendNodes(closest, request.SessionID, request.From.Address)
 		if err != nil {
-			log.
-				Error().Err(err).Msgf("Find nodes network call failed for: %v", request.From.Address)
+			log.Error().Err(err).Msgf("Find nodes network call failed for: %v", request.From.Address)
 		}
 	}
 }
@@ -85,7 +86,20 @@ func (dht *DHT) storeRequestHandler() {
 		// table.
 		go dht.addNode(request.From)
 
-		dht.db.AddItem(request.Value, request.From.NodeID)
+		var touch bool
+		switch request.Class {
+		case network.StoreClassPublish:
+			touch = true
+		case network.StoreClassReplicate:
+			fallthrough
+		default:
+			touch = false
+		}
+
+		key := store.KeyFromValue(request.Value)
+		centrality := dht.rt.Centrality(node.ID(key))
+
+		dht.db.AddItem(key, request.Value, centrality, k, touch)
 	}
 }
 
@@ -110,15 +124,29 @@ func (dht *DHT) pongRequestHandler() {
 	}
 }
 
+func (dht *DHT) replicateRequestHandler() {
+	for {
+		item := <-dht.db.ReplicateCh()
+
+		log.Debug().Msgf("Replicate request on value: %v", item)
+
+		_, err := dht.iterativeStore(item.Value, network.StoreClassReplicate)
+		if err != nil {
+			log.Error().Err(err).
+				Msgf("Replicate event failed for value: %v", item)
+		}
+	}
+}
+
 func (dht *DHT) republishRequestHandler() {
 	for {
-		value := <-dht.db.ItemCh()
+		item := <-dht.db.RepublishCh()
 
-		log.Debug().Msgf("Republish request on value: %v", value)
+		log.Debug().Msgf("Republish request on value: %v", item)
 
-		_, err := dht.iterativeStore(value)
+		_, err := dht.iterativeStore(item.Value, network.StoreClassPublish)
 		if err != nil {
-			log.Error().Err(err).Msgf("Republish event failed for value: %v", value)
+			log.Error().Err(err).Msgf("Republish event failed for value: %v", item)
 		}
 	}
 }

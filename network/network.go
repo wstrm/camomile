@@ -15,6 +15,14 @@ import (
 	"github.com/optmzr/d7024e-dht/store"
 )
 
+type StoreClass = packet.StoreClass
+
+const (
+	StoreClassUnknown   = packet.StoreClass_UNKNOWN
+	StoreClassPublish   = packet.StoreClass_PUBLISH
+	StoreClassReplicate = packet.StoreClass_REPLICATE
+)
+
 const Size256 = 256 / 8
 
 const networkTimeout = 1 * time.Second
@@ -46,7 +54,7 @@ type Network interface {
 	Ping(addr net.UDPAddr) (chan *PingResult, []byte, error)
 	Pong(challenge []byte, sessionID SessionID, addr net.UDPAddr) error
 	FindNodes(target node.ID, addr net.UDPAddr) (chan FindResult, error)
-	Store(key store.Key, value string, addr net.UDPAddr) error
+	Store(key store.Key, value string, class StoreClass, addr net.UDPAddr) error
 	FindValue(key store.Key, addr net.UDPAddr) (chan FindResult, error)
 	SendValue(key store.Key, value string, closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error
 	SendNodes(closest []route.Contact, sessionID SessionID, addr net.UDPAddr) error
@@ -74,6 +82,7 @@ type PongRequest struct {
 }
 
 type StoreRequest struct {
+	Class StoreClass
 	Value string
 	From  route.Contact
 }
@@ -206,11 +215,11 @@ func (u *udpNetwork) FindNodes(target node.ID, addr net.UDPAddr) (chan FindResul
 	return findResult, nil
 }
 
-func (u *udpNetwork) Store(key store.Key, value string, addr net.UDPAddr) error {
+func (u *udpNetwork) Store(key store.Key, value string, class StoreClass, addr net.UDPAddr) error {
 	id := generateID()
 
 	payload := &packet.Store{
-		Key:   key[:],
+		Class: class,
 		Value: value,
 	}
 	p := &packet.Packet{
@@ -511,8 +520,10 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		var senderID node.ID
 		copy(senderID[:], p.GetSenderId())
 		value := p.GetStore().Value
+		class := p.GetStore().Class
 
 		u.sr <- &StoreRequest{
+			Class: class,
 			Value: value,
 			From: route.Contact{
 				NodeID: senderID,

@@ -58,10 +58,15 @@ func forget(c *rpc.Client, key store.Key) {
 	forget := ctl.Forget{
 		Key: key,
 	}
+	var ok bool
 
-	err := c.Call("API.Forget", forget, nil)
+	err := c.Call("API.Forget", forget, &ok)
 	if err != nil {
 		log.Fatalln("Forget error:", err)
+	}
+
+	if ok {
+		fmt.Println("Value forgotten")
 	}
 }
 

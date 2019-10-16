@@ -14,11 +14,9 @@ func TestItemsAdd(t *testing.T) {
 	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*86400, iHTicker, rHTicker)
 
 	testVal := "q"
+	testKey := KeyFromValue(testVal)
 
-	var testNodeID node.ID
-	copy(testNodeID[:], "w")
-
-	db.AddItem(testVal, testNodeID)
+	db.AddItem(testKey, testVal, 1, 1, true)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
@@ -32,12 +30,13 @@ func TestItemsAdd(t *testing.T) {
 		t.Errorf("value of item does not match original value.\nExpected: %x\nGot: %x", testVal, storedTestItem.Value)
 	}
 
-	if !(testNodeID == storedTestItem.origPub) {
-		t.Errorf("NodeID stored does not match original NodeID.\nExpected: %x\nGot: %x", testNodeID, storedTestItem.origPub)
-	}
+	// No touchy.
+	testItemCopy := storedTestItem
+	db.AddItem(testKey, "something else", 1, 1, false)
+	storedTestItem, _ = db.GetItem(trueHash)
 
-	if storedTestItem.expire.IsZero() || storedTestItem.republish.IsZero() {
-		t.Errorf("Expire or republish time is not set")
+	if testItemCopy.Value != storedTestItem.Value {
+		t.Errorf("unexpected value, should be the same")
 	}
 }
 
@@ -71,12 +70,14 @@ func BenchmarkAddItem(b *testing.B) {
 		"freedom from envy and the passion for honor",
 	}
 
-	var testNodeID node.ID
-	copy(testNodeID[:], "w")
+	var testKey []Key
+	for _, val := range testVal {
+		testKey = append(testKey, KeyFromValue(val))
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		db.AddItem(testVal[i%len(testVal)], testNodeID)
+		db.AddItem(testKey[i%len(testKey)], testVal[i%len(testVal)], 1, 1, false)
 	}
 }
 
@@ -106,12 +107,12 @@ func TestStoredKeysAdd(t *testing.T) {
 
 	db.AddLocalItem(trueHash, testVal)
 
-	storedTestKey, err := db.GetLocalItem(trueHash)
-	if err != nil {
-		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
+	storedLocalItem, ok := getLocalItem(db, trueHash)
+	if !ok {
+		t.Errorf("Did not find item entry in key DB for: %x", trueHash)
 	}
 
-	if storedTestKey.repubTime.IsZero() {
+	if storedLocalItem.republish.IsZero() {
 		t.Errorf("Key in DB has no time associated.")
 	}
 }
@@ -128,7 +129,7 @@ func TestEvictItem(t *testing.T) {
 	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
-	db.AddItem(testVal, testNodeID)
+	db.AddItem(KeyFromValue(testVal), testVal, 2, 1, false)
 
 	// GetItem returns error if item is not found, this assures that something is inserted before we remove it.
 	_, err := db.GetItem(trueHash)
@@ -136,7 +137,7 @@ func TestEvictItem(t *testing.T) {
 		t.Errorf("Item is not in the DB")
 	}
 
-	db.evictItem(trueHash)
+	db.evictRemoteItem(trueHash)
 
 	// GetItem should error which assures that the item is no longer found in the item DB.
 	_, err = db.GetItem(trueHash)
@@ -158,7 +159,7 @@ func TestGetItem(t *testing.T) {
 	var testNodeID node.ID
 	copy(testNodeID[:], "w")
 
-	db.AddItem(testVal, testNodeID)
+	db.AddItem(KeyFromValue(testVal), testVal, 1, 1, false)
 
 	_, err := db.GetItem(fakeHash)
 	if err == nil {
@@ -169,6 +170,13 @@ func TestGetItem(t *testing.T) {
 	if err != nil {
 		t.Errorf("No such items stored in item DB.")
 	}
+}
+
+func getLocalItem(db *Database, key Key) (localItem, bool) {
+	db.localItems.RLock()
+	defer db.localItems.RUnlock()
+	item, ok := db.localItems.m[key]
+	return item, ok
 }
 
 func TestGetRepubTime(t *testing.T) {
@@ -182,97 +190,115 @@ func TestGetRepubTime(t *testing.T) {
 
 	db.AddLocalItem(trueHash, testVal)
 
-	storedTestKey, err := db.GetLocalItem(trueHash)
-	if err != nil {
-		t.Errorf("Did not find timem entry in key DB for: %x", trueHash)
+	storedLocalItem, ok := getLocalItem(db, trueHash)
+	if !ok {
+		t.Error("key doesn't exist in db")
 	}
 
-	if storedTestKey.repubTime.IsZero() {
-		t.Errorf("Key in DB has no time associated.")
+	if storedLocalItem.republish.IsZero() {
+		t.Error("key in DB has no time associated.")
 	}
 
-	_, err = db.GetLocalItem(fakeHash)
-	if err == nil {
-		t.Errorf("Found entry in key DB for value that was never inserted.")
+	_, ok = getLocalItem(db, fakeHash)
+	if ok {
+		t.Error("Found entry in key DB for value that was never inserted.")
 	}
 }
 
 func TestItemHandler(t *testing.T) {
-	iHTicker := time.NewTicker(time.Second)
 	rHTicker := time.NewTicker(time.Second)
-	db := NewDatabase(time.Second*0, time.Second*3600, time.Second*86400, iHTicker, rHTicker)
+
+	tch := make(chan time.Time)
+	iHTicker := &time.Ticker{
+		C: tch,
+	}
+
+	tick := make(chan struct{})
+	go func(tch chan time.Time, tick chan struct{}) {
+		// Add 1000 hours to mock "now". This will make the item to expire
+		// immediately.
+		<-tick
+		tch <- time.Now().Add(1000 * time.Hour)
+	}(tch, tick)
 
 	testVal := "q"
-
-	var testNodeID node.ID
-	copy(testNodeID[:], "w")
-
-	db.AddItem(testVal, testNodeID)
-
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 
-	// After 2 seconds, check if the item  has been removed.
-	timer := time.NewTimer(time.Second * 3)
-	<-timer.C
+	db := NewDatabase(time.Second*86410, time.Second*3600, time.Second*86400, iHTicker, rHTicker)
 
+	db.AddItem(KeyFromValue(testVal), testVal, 1, 1, false)
 	_, err := db.GetItem(trueHash)
-
-	if err == nil {
-		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
+	if err != nil {
+		t.Error("no item was added to db")
 	}
-}
 
-func TestItemHandlerRepub(t *testing.T) {
-	iHTicker := time.NewTicker(time.Second)
-	rHTicker := time.NewTicker(time.Second)
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0, iHTicker, rHTicker)
-	testVal := "q"
+	tick <- struct{}{} // Item should have been added, make the ticker tick.
 
-	var testNodeID node.ID
-	copy(testNodeID[:], "w")
-	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
-
-	db.AddItem(testVal, testNodeID)
-
-	// After 2 seconds, check if the item  has been removed.
-	timer := time.NewTimer(time.Second * 3)
-	<-timer.C
-
-	_, err := db.GetItem(trueHash)
-	if err == nil {
-		t.Errorf("Item is still in DB after 2 seconds, handler not working.")
+	for start := time.Now(); time.Since(start) < time.Second; {
+		_, err := db.GetItem(trueHash)
+		if err != nil {
+			return // Done, item was removed.
+		}
 	}
+
+	t.Error("item is still in db")
 }
 
 func TestRepublisher(t *testing.T) {
 	iHTicker := time.NewTicker(time.Second)
-	rHTicker := time.NewTicker(time.Second)
-	db := NewDatabase(time.Second*86400, time.Second*3600, time.Second*0, iHTicker, rHTicker)
+
+	tch := make(chan time.Time)
+	rHTicker := &time.Ticker{
+		C: tch,
+	}
+
+	tick := make(chan struct{})
+	go func(tch chan time.Time, tick chan struct{}) {
+		// Add 1000 hours to mock "now". This will make the item to expire
+		// immediately.
+		<-tick
+		tch <- time.Now().Add(1000 * time.Hour)
+	}(tch, tick)
+
+	db := NewDatabase(time.Second*86410, time.Second*3600, time.Second*86400, iHTicker, rHTicker)
 
 	trueHash := [32]byte{174, 79, 167, 92, 82, 249, 190, 142, 129, 67, 178, 149, 52, 212, 158, 150, 67, 136, 83, 10, 170, 233, 83, 34, 158, 194, 62, 241, 14, 168, 19, 103}
 	testVal := "q"
 
 	db.AddLocalItem(trueHash, testVal)
+	tick <- struct{}{} // Item should have been added, make the ticker tick.
 
-	republishedValue := <-db.ch
-	if republishedValue != testVal {
+	republished := <-db.republishCh
+	if republished.Value != testVal {
 		t.Errorf("LocalItem did not get republished.")
 	}
 }
 
 func TestReplication(t *testing.T) {
 	iHTicker := time.NewTicker(time.Second)
-	rHTicker := time.NewTicker(time.Second)
+
+	tch := make(chan time.Time)
+	rHTicker := &time.Ticker{
+		C: tch,
+	}
+
+	tick := make(chan struct{})
+	go func(tch chan time.Time, tick chan struct{}) {
+		// Add 1000 hours to mock "now". This will make the item to expire
+		// immediately.
+		<-tick
+		tch <- time.Now().Add(1000 * time.Hour)
+	}(tch, tick)
+
 	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400, iHTicker, rHTicker)
 
 	testVal := "q"
-	var testNodeID node.ID
-	copy(testNodeID[:], "w")
 
-	db.AddItem(testVal, testNodeID)
+	db.AddItem(KeyFromValue(testVal), testVal, 1, 1, false)
+	tick <- struct{}{} // Item should have been added, make the ticker tick.
 
-	replicatedValue := <-db.ch
-	if replicatedValue != testVal {
+	replicated := <-db.replicateCh
+	if replicated.Value != testVal {
 		t.Errorf("Key did not get replicated")
 	}
 }
@@ -298,13 +324,23 @@ func TestKeyFromString(t *testing.T) {
 	}
 }
 
-func TestLocalItemCh(t *testing.T) {
+func TestRepublishCh(t *testing.T) {
 	iHTicker := time.NewTicker(time.Second)
 	rHTicker := time.NewTicker(time.Second)
 	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400, iHTicker, rHTicker)
 
-	returnedChan := db.ItemCh()
-	go func() { returnedChan <- "abc" }()
+	returnedChan := db.RepublishCh()
+	go func() { returnedChan <- Item{} }()
+	<-returnedChan
+}
+
+func TestReplicateCh(t *testing.T) {
+	iHTicker := time.NewTicker(time.Second)
+	rHTicker := time.NewTicker(time.Second)
+	db := NewDatabase(time.Second*86400, time.Second*0, time.Second*86400, iHTicker, rHTicker)
+
+	returnedChan := db.ReplicateCh()
+	go func() { returnedChan <- Item{} }()
 	<-returnedChan
 }
 
@@ -319,15 +355,23 @@ func TestForgetItem(t *testing.T) {
 
 	db.AddLocalItem(trueHash, testVal)
 
-	_, err := db.GetLocalItem(trueHash)
-	if err != nil {
+	_, ok := getLocalItem(db, trueHash)
+	if !ok {
 		t.Error("expected localItem to be in db")
 	}
 
 	db.ForgetItem(trueHash)
 
-	_, err = db.GetLocalItem(trueHash)
-	if err == nil {
+	_, ok = getLocalItem(db, trueHash)
+	if ok {
 		t.Error("expected localItem is still in db, expected error")
+	}
+}
+
+func TestItemString(t *testing.T) {
+	item := Item{Key: [32]byte{}, Value: "q"}
+	str := item.String()
+	if str != "0000000000000000000000000000000000000000000000000000000000000000: q" {
+		t.Errorf("unexpected string: %s", str)
 	}
 }
