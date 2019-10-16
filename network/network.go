@@ -324,8 +324,7 @@ func (u *udpNetwork) SendNodes(closest []route.Contact, sessionID SessionID, add
 }
 
 func (u *udpNetwork) Listen() (err error) {
-	log.Info().
-		Msgf("Listening for UDP packets on: %s", u.me.Address.String())
+	log.Info().Msgf("Listening for UDP packets on: %s", u.me.Address.String())
 
 	u.conn, err = net.ListenUDP("udp", &u.me.Address)
 	if err != nil {
@@ -343,13 +342,8 @@ func (u *udpNetwork) Listen() (err error) {
 	for {
 		n, addr, err := u.conn.ReadFromUDP(buffer)
 
-		log.Debug().
-			Msgf("Received packet from: %v", addr)
-
 		if err != nil {
-			log.Error().Err(err).
-				Msgf("Error when reading from UDP from address %v: %s",
-					addr, err)
+			log.Error().Err(err).Msgf("Error when reading from UDP from address %v: %s", addr, err)
 			continue
 		}
 
@@ -362,16 +356,14 @@ func (u *udpNetwork) Listen() (err error) {
 }
 
 func logChannelNotFound(id SessionID) {
-	log.Warn().
-		Msgf("Channel with ID: %x not found in table", id)
+	log.Warn().Msgf("Channel with ID: %x not found in table", id)
 }
 
 func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 	p := &packet.Packet{}
 	err := proto.Unmarshal(b, p)
 	if err != nil {
-		log.Error().Err(err).
-			Msg("Error unserializing packet")
+		log.Error().Err(err).Msg("Error unserializing packet")
 
 		return
 	}
@@ -535,8 +527,7 @@ func (u *udpNetwork) handlePacket(b []byte, addr net.UDPAddr) {
 		}
 
 	default:
-		log.Debug().
-			Msgf("Unhandled packet: %v", p)
+		log.Debug().Msgf("Unhandled packet: %v", p)
 	}
 }
 

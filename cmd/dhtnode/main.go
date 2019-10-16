@@ -34,15 +34,9 @@ func flagSplit(flag string) (string, string) {
 	return nodeID, address
 }
 
-func main() {
-	meFlag := flag.String("me", "", "Defaults to an auto generated ID, IP defaults to localhost")
-	otherFlag := flag.String("other", "", "Waits for incoming connections if not supplied")
-	debugFlag := flag.Bool("debug", false, "Print debug logs")
-	logFilepathFlag := flag.String("log", "/tmp/dhtnode.log", "File to output logs to")
-	flag.Parse()
-
+func setupLogger(debug bool, logFilepath string) zerolog.Logger {
 	var console io.Writer
-	if *debugFlag {
+	if debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 		// Pretty print logs instead of JSON.
@@ -51,16 +45,12 @@ func main() {
 			NoColor:    true,
 		}
 	} else {
-		logFilepath := *logFilepathFlag
-
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		// Unix timestamps are quicker.
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		fw, err := os.Create(logFilepath)
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msgf("Failed to open log file at: %s", logFilepath)
+			log.Fatal().Err(err).Msgf("Failed to open log file at: %s", logFilepath)
 		}
 
 		// Wrap the file writer io.Writer in a non-blocking wrapper.
@@ -77,11 +67,21 @@ func main() {
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(logger)
 
+	return logger
+}
+
+func main() {
+	meFlag := flag.String("me", "", "Defaults to an auto generated ID, IP defaults to localhost")
+	otherFlag := flag.String("other", "", "Waits for incoming connections if not supplied")
+	debugFlag := flag.Bool("debug", false, "Print debug logs")
+	logFilepathFlag := flag.String("log", "/tmp/dhtnode.log", "File to output logs to")
+	flag.Parse()
+
+	logger := setupLogger(*debugFlag, *logFilepathFlag)
+
 	address, err := net.ResolveUDPAddr("udp", defaultDHTAddress)
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msgf("Unable to resolve UDP address: %s", defaultDHTAddress)
+		log.Fatal().Err(err).Msgf("Unable to resolve UDP address: %s", defaultDHTAddress)
 	}
 
 	var others []route.Contact
@@ -97,16 +97,12 @@ func main() {
 	} else {
 		nodeID, err := node.IDFromString(otherID)
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msgf("Unable to parse node ID from: %s", otherID)
+			log.Fatal().Err(err).Msgf("Unable to parse node ID from: %s", otherID)
 		}
 
 		nodeAddress, err := net.ResolveUDPAddr("udp", otherAddress)
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msgf("Unable to resolve UDP address: %s", otherAddress)
+			log.Fatal().Err(err).Msgf("Unable to resolve UDP address: %s", otherAddress)
 		}
 
 		others = []route.Contact{
@@ -128,16 +124,12 @@ func main() {
 	} else {
 		nodeID, err := node.IDFromString(meID)
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msgf("Unable to parse node ID from: %s", meID)
+			log.Fatal().Err(err).Msgf("Unable to parse node ID from: %s", meID)
 		}
 
 		nodeAddress, err := net.ResolveUDPAddr("udp", meAddress)
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msgf("Unable to resolve UDP address: %s", meAddress)
+			log.Fatal().Err(err).Msgf("Unable to resolve UDP address: %s", meAddress)
 		}
 
 		me = route.Contact{

@@ -159,8 +159,6 @@ func (db *Database) AddItem(key Key, value string, centrality int, k int, touch 
 	db.remoteItems.Lock()
 	db.remoteItems.m[key] = item
 	db.remoteItems.Unlock()
-
-	log.Info().Msgf("Stored:\n\tValue: %s\n\tHash: %v", value, key)
 }
 
 // AddLocalItem adds an value to the local item database that this node has requested to be stored on the kademlia network.
