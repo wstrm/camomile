@@ -12,7 +12,7 @@ import (
 )
 
 func TestRPCServe(t *testing.T) {
-	local, _ := net.ResolveUDPAddr("udp", "localhost:1238")
+	local, _ := net.ResolveUDPAddr("udp", "localhost:1337")
 	me := route.Contact{
 		NodeID:  node.NewID(),
 		Address: *local,
