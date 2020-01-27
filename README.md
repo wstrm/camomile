@@ -1,6 +1,14 @@
 Camomile
 ========
 
+Camomile is an implementation of the Kademlia protocol done during the course
+Mobile and distributed computing systems (D7024E) at Luleå University of
+Technology.
+
+A short project report with system architecture and a design specification can
+be found here:
+[doc/d7024e_project_kademlia_report.pdf](doc/d7024e_project_kademlia_report.pdf)
+
 ## Project status
 | Build status | Test coverage | Camomile docs |
 |:------------:|:-------------:|:--------------|
